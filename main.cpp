@@ -1,5 +1,6 @@
 ﻿#define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
+#include <io.h>
 
 struct Actor// упрощения хранения координат игрока
 {
@@ -26,6 +27,7 @@ public:
 		BRIDGE = 4,
 		BROKENROAD = 5,
 		SIGN = 6,
+		TREE = 7,
 	};
 	enum Player // енам состояния игрока
 	{
@@ -44,7 +46,7 @@ public:
 
 	Game() // конструктор класса
 	{
-		BlockTypes = 6;
+		BlockTypes = 7;
 		CurrentBlock = 0;
 
 		Player.x = 128;
@@ -166,6 +168,7 @@ public:
 		signw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/signw.png");
 		BrokenRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/BrokenRoad.png");
 		OldRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/OldRoad.png");
+		treew = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/Treew.png");
 		
 
 		return true;
@@ -189,7 +192,7 @@ public:
 
 		// ввод с клавы
 
-		if (GetKey(olc::Key::I).bPressed)
+		if(GetKey(olc::Key::I).bPressed)
 		{
 			if (BuildMod == false)
 			{
@@ -359,6 +362,7 @@ private:
 	std::unique_ptr<olc::Sprite> BrokenRoad;
 	std::unique_ptr<olc::Sprite> OldRoad;
 	std::unique_ptr<olc::Sprite> alisawRight;
+	std::unique_ptr<olc::Sprite> treew;
 
 	float fTargetFrameTime;
 	float fAccumulatedTime;
@@ -420,7 +424,7 @@ private:
 	void DisplaySign()
 	{
 		FillRect(20,360,420,440,olc::BLACK);
-		DrawString(30,370, "Im a sign!", olc::WHITE, 2);
+		DrawString(30,370, GetSign(), olc::WHITE, 2);
 	}
 
 	olc::Sprite* GetSprite(unsigned SpriteID)
@@ -448,6 +452,9 @@ private:
 			case Tile::SIGN:
 				return signw.get();
 				break;
+			case Tile::TREE:
+				return treew.get();
+				break;
 			default:
 				return waterw.get();
 		}
@@ -465,6 +472,7 @@ private:
 		{
 		case Tile::WATER:
 		case Tile::EMPTY:
+		case Tile::TREE:
 			return false;
 			break;
 
@@ -477,16 +485,24 @@ private:
 	std::string GetSign()
 	{
 		FILE* file;
-		Player buffer;
+		Actor buffer;
+		std::string note;
 		if(fopen_s(&file, "signs.bin", "r") == 0)
 		{
-			fread(&buffer.x, sizeof(unsigned), 1, file);
-			fread(&buffer.y, sizeof(unsigned), 1, file)
+			int count = _filelength(_fileno(file)) / (sizeof(unsigned) + sizeof(unsigned) + sizeof(std::string));
+			for(int i = 0; i < count; i++)
+			{
+				fread(&buffer.x, sizeof(unsigned), 1, file);
+				fread(&buffer.y, sizeof(unsigned), 1, file);
+				fread(&note, sizeof(std::string), 1, file);
+				if((buffer.x == int(Player.x)) && (buffer.y == int(Player.y)))
+				{
+					return note;
+				}
+			}
 		}
-		else
-		{
-			return "I am a sign!";
-		}
+		note = "I am a sign!";
+		return note;
 	}
 
 	bool IsBlock(unsigned block)
