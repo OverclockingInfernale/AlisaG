@@ -23,17 +23,20 @@ public:
 		EMPTY = 0,
 		GRASS = 1,
 		WATER = 2,
-		ROAD = 3,
-		BRIDGE = 4,
+		BRIDGE = 3,
+		ROAD = 4,
 		BROKENROAD = 5,
 		SIGN = 6,
-		TREE = 7,
+		NULLW = 7,
+		TREE = 8,
 	};
+
 	enum Player // енам состояния игрока
 	{
 		FREE = 0,
 		IN_MENU = 1,
-		DIED = 2,
+		IN_FIGHT = 2,
+		DIED = 3,
 	};
 
 	enum State // енам состояния игры
@@ -41,12 +44,13 @@ public:
 		NOT_STARTED = 0,
 		STARTED = 1,
 		OVERWORLD = 2,
-		FIGHT = 3,
+		PRE_FIGHT = 3,
+		FIGHT = 4,
 	};
 
 	Game() // конструктор класса
 	{
-		BlockTypes = 7;
+		BlockTypes = 8;
 		CurrentBlock = 0;
 
 		Player.x = 128;
@@ -61,17 +65,20 @@ public:
 				for (int j = 0; j < 256; j++)
 				{
 					fread(&World[i][j].block, sizeof(unsigned), 1, file);
+					fread(&World[i][j].obj, sizeof(unsigned), 1, file);
 				}
 			}
 			fclose(file);
 		}
 		else
 		{
+			std::cout << "MAP READ ERROR" << std::endl;
 			for (int i = 0; i < 256; i++)
 			{
 				for (int j = 0; j < 256; j++)
 				{
-					World[i][j].block = 2;
+					World[i][j].block = Tile::WATER;
+					World[i][j].obj = Tile::NULLW;
 				}
 			}
 			for (int i = 16; i < 240; i++)		
@@ -132,8 +139,6 @@ public:
 
 		BuildMod = false;
 
-		World[int(Player.x) - 4][int(Player.y)].obj = 6;
-
 		std::cout << "Tile x = " << TileX << std::endl;		//Типо дебаг
 		std::cout << "Tile y = " << TileY << std::endl;
 		std::cout << "Midle X = " << MidleX << std::endl;
@@ -141,23 +146,6 @@ public:
 		std::cout << "Player.x = " << Player.x << std::endl;
 		std::cout << "Player.y = " << Player.y << std::endl;
 		std::cout << "Player pos = " << MidleX - (TileX / 4) << "   " << MidleY - (TileY / 4) << "   " << MidleX << "   " << MidleY << std::endl;
-
-		FILE* file;
-		if (fopen_s(&file, "map.bin", "r") == 0) // чтения мира из файла
-		{
-			for (int i = 0; i < 256; i++)
-			{
-				for (int j = 0; j < 256; j++)
-				{
-					fread(&World[i][j].block, sizeof(unsigned), 1, file);
-				}
-			}
-			fclose(file);
-		}
-		else
-		{
-			std::cout << "MAP FILE READ ERROR" << std::endl;
-		}
 
 		// указание пути размещения спрайтов
 
@@ -169,15 +157,14 @@ public:
 		BrokenRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/BrokenRoad.png");
 		OldRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/OldRoad.png");
 		treew = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/Treew.png");
+		NULLw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/NULLw.png");
 		
-
 		return true;
-
 	}
 
 	bool OnUserUpdate(float fElapsedTime) override // вызов каждый божий кадр
 	{
-		Clear(olc::DARK_BLUE); // очистка экран на сплошной цвет
+		
 
 		fAccumulatedTime += fElapsedTime;
 		if (fAccumulatedTime >= fTargetFrameTime)
@@ -203,6 +190,16 @@ public:
 			{
 				BuildMod = false;
 				std::cout << "BuildMod DIACTIVATED" << std::endl;
+			}
+		}
+
+		if (GetKey(olc::Key::F).bPressed)
+		{
+			std::cout << "Enter Player statement" << std::endl;
+			std::cin >> Player.state;
+			if (Player.state == 3)
+			{
+				frame = 0;
 			}
 		}
 
@@ -241,6 +238,7 @@ public:
 					for (int j = 0; j < 256; j++)
 					{
 						fwrite(&World[i][j].block, sizeof(unsigned), 1, file);
+						fwrite(&World[i][j].obj, sizeof(unsigned), 1, file);
 					}
 				}
 				fclose(file);
@@ -260,8 +258,15 @@ public:
 				World[int(Player.x)][int(Player.y)].block = CurrentBlock;
 			}
 			else
-			{
-				World[int(Player.x)][int(Player.y)].obj = CurrentBlock;
+			{	
+				if (CurrentBlock == Tile::NULLW)
+				{
+					World[int(Player.x)][int(Player.y)].obj = NULL;
+				}
+				else
+				{
+					World[int(Player.x)][int(Player.y)].obj = CurrentBlock;
+				}
 			}
 			EnterPressed = false;
 		}
@@ -290,50 +295,28 @@ public:
 			}
 		}
 
-
-		if (KeyPressed == true)		//Управление/Перемещение по миру
-		{
-			if (LPressed == true && (CollisionDetection(World[int(Player.x - 1)][int(Player.y)].block) != false) && (frame % 15 == 0))
-			{
-				Player.x -= 3.5f * fElapsedTime;
-				LPressed = false;
-			}
-			else if (RPressed == true && (CollisionDetection(World[int(Player.x + 1)][int(Player.y)].block) != false) && (frame % 15 == 0))
-			{
-				Player.x += 3.5f * fElapsedTime;
-				RPressed = false;
-			}
-			else if (UpPressed == true && (CollisionDetection(World[int(Player.x)][int(Player.y - 1)].block) != false) && (frame % 15 == 0))
-			{
-				Player.y -= 3.5f * fElapsedTime;
-				UpPressed = false;
-			}
-			else if (DownPressed == true && (CollisionDetection(World[int(Player.x)][int(Player.y + 1)].block) != false) && (frame % 15 == 0))
-			{
-				Player.y += 3.5f * fElapsedTime;
-				DownPressed = false;
-			}
-			KeyPressed = false;
-		}
-
 		//обработка логики мира
-		switch (PlayerState)
+		switch (Player.state)
 		{
 		case State::NOT_STARTED:
 
-			PlayerState = 1;
-
+			Player.state = 1; // загатовка для главного меню
 			break;
 
 		case State::STARTED:
 
-			PlayerState = 2;
+			Player.state = 2; // загатовка для катсцени или типо того
 
 			break;
 
-		case State::OVERWORLD:
+		case State::OVERWORLD: //режим открытого мира
+
+			Clear(olc::DARK_BLUE); // очистка экран на сплошной цвет
+
+			OverworldControl(fElapsedTime);
 			DisplayWorld();
 			DisplayPlayer();
+
 			if(BuildMod == true)
 			{
 				DrawBuildHud();
@@ -344,10 +327,29 @@ public:
 			}
 
 			break;
+		case State::PRE_FIGHT:
+			Clear(olc::DARK_BLUE);
+			DisplayWorld();
+			DisplayPlayer();
+			for (int i = 0; i <= 480; i++)
+			{
+				DrawLine(i - 2300 + ((frame* frame) / 8), i, (i + 20) + ((frame * frame) / 8), i, olc::BLACK); // переделать функцию
+			}
+			if (frame == 60)
+			{
+				frame = 0;
+				Player.state = State::FIGHT;
+			}
+			frame++;
+			break;
+		case State::FIGHT:// режим битвы
+			
+			Clear(olc::BLACK);
+			DrawString(MidleX,	MidleY, "FIGHT MODE", olc::WHITE, 2);
+			break;
 		}
 
 		return true;
-
 	}
 
 private:
@@ -363,11 +365,10 @@ private:
 	std::unique_ptr<olc::Sprite> OldRoad;
 	std::unique_ptr<olc::Sprite> alisawRight;
 	std::unique_ptr<olc::Sprite> treew;
+	std::unique_ptr<olc::Sprite> NULLw;
 
 	float fTargetFrameTime;
 	float fAccumulatedTime;
-
-	unsigned PlayerState;
 
 	short frame;
 	short KeyFrame;
@@ -409,6 +410,34 @@ private:
 		}
 	}
 
+	void OverworldControl(float fElapsedTime)
+	{
+		if (KeyPressed == true)		//Управление/Перемещение по миру
+		{
+			if (LPressed == true && (CollisionDetection(World[int(Player.x - 1)][int(Player.y)].block) != false))
+			{
+				Player.x -= 2.5f * fElapsedTime;
+				LPressed = false;
+			}
+			else if (RPressed == true && (CollisionDetection(World[int(Player.x + 1)][int(Player.y)].block) != false))
+			{
+				Player.x += 2.5f * fElapsedTime;
+				RPressed = false;
+			}
+			else if (UpPressed == true && (CollisionDetection(World[int(Player.x)][int(Player.y - 1)].block) != false))
+			{
+				Player.y -= 2.5f * fElapsedTime;
+				UpPressed = false;
+			}
+			else if (DownPressed == true && (CollisionDetection(World[int(Player.x)][int(Player.y + 1)].block) != false))
+			{
+				Player.y += 2.5f * fElapsedTime;
+				DownPressed = false;
+			}
+			KeyPressed = false;
+		}
+	}
+
 	void DisplayPlayer()		//Рисование
 	{
 		SetPixelMode(olc::Pixel::MASK);
@@ -418,12 +447,14 @@ private:
 
 	void DrawBuildHud()
 	{
+		SetPixelMode(olc::Pixel::MASK);
 		DrawSprite(440,20, GetSprite(CurrentBlock), 0.5f, 0);
+		SetPixelMode(olc::Pixel::NORMAL);
 	}
 
 	void DisplaySign()
 	{
-		FillRect(20,360,420,440,olc::BLACK);
+		FillRect(20,360,440,440,olc::BLACK);
 		DrawString(30,370, GetSign(), olc::WHITE, 2);
 	}
 
@@ -455,6 +486,8 @@ private:
 			case Tile::TREE:
 				return treew.get();
 				break;
+			case Tile::NULLW:
+				return NULLw.get();
 			default:
 				return waterw.get();
 		}
@@ -510,6 +543,7 @@ private:
 		switch(block)
 		{
 			case Tile::SIGN:
+			case Tile::NULLW:
 				return false;
 			break;
 			default:
@@ -522,7 +556,7 @@ private:
 int main()
 {
 	Game go;
-	if (go.Construct(480, 480, 2, 2, false, true))		//Задает размеры видимой области игрового мира, а так же включает vsync
+	if (go.Construct(480, 480, 2, 2))		//Задает размеры видимой области игрового мира, а так же включает vsync
 	{
 		go.Start();
 	}
