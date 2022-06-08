@@ -18,6 +18,7 @@ struct Map
 class Game : public olc::PixelGameEngine
 {
 public:
+
 	enum Tile // енам мира
 	{
 		EMPTY = 0,
@@ -53,8 +54,8 @@ public:
 		BlockTypes = 8;
 		CurrentBlock = 0;
 
-		Player.x = 128;
-		Player.y = 128;
+		Player.x = 1;
+		Player.y = 1;
 		Player.state = 0;
 
 		FILE* file;
@@ -128,6 +129,8 @@ public:
 
 	bool OnUserCreate() override // вызов при создании окна
 	{
+		InCredits = false;
+
 		FillRect(0, 0, ScreenWidth(), ScreenHeight(), olc::BLACK);
 
 		TileX = ScreenWidth() / 5;			//Переменные середины дисплея
@@ -179,18 +182,13 @@ public:
 
 		// ввод с клавы
 
-		if(GetKey(olc::Key::I).bPressed)
-		{
-			if (BuildMod == false)
-			{
-				BuildMod = true;
-				std::cout << "BuildMod activated" << std::endl;
-			}
-			else if (BuildMod = true)
-			{
-				BuildMod = false;
-				std::cout << "BuildMod DIACTIVATED" << std::endl;
-			}
+		if(GetKey(olc::Key::UP).bPressed && Player.state == 1){
+			UpPressed = true;
+			KeyPressed = true;
+		}
+		if(GetKey(olc::Key::DOWN).bPressed && Player.state == 1){
+			DownPressed = true;
+			KeyPressed = true;
 		}
 
 		if (GetKey(olc::Key::F).bPressed)
@@ -207,22 +205,22 @@ public:
 		{
 			EnterPressed = true;
 		}
-		else if (GetKey(olc::Key::LEFT).bHeld)
+		else if (GetKey(olc::Key::LEFT).bHeld && Player.state == 2)
 		{
 			LPressed = true;
 			KeyPressed = true;
 		}
-		else if (GetKey(olc::Key::RIGHT).bHeld)
+		else if (GetKey(olc::Key::RIGHT).bHeld && Player.state == 2)
 		{
 			RPressed = true;
 			KeyPressed = true;
 		}
-		else if (GetKey(olc::Key::UP).bHeld)
+		else if (GetKey(olc::Key::UP).bHeld && Player.state == 2)
 		{
 			UpPressed = true;
 			KeyPressed = true;
 		}
-		else if (GetKey(olc::Key::DOWN).bHeld)
+		else if (GetKey(olc::Key::DOWN).bHeld && Player.state == 2)
 		{
 			DownPressed = true;
 			KeyPressed = true;
@@ -250,29 +248,9 @@ public:
 				return false;
 			}
 		}
-		
-		if((EnterPressed == true) && (BuildMod == true))
-		{
-			if(IsBlock(CurrentBlock) == true)
-			{
-				World[int(Player.x)][int(Player.y)].block = CurrentBlock;
-			}
-			else
-			{	
-				if (CurrentBlock == Tile::NULLW)
-				{
-					World[int(Player.x)][int(Player.y)].obj = NULL;
-				}
-				else
-				{
-					World[int(Player.x)][int(Player.y)].obj = CurrentBlock;
-				}
-			}
-			EnterPressed = false;
-		}
 
 		// Редактирование мира
-		if (GetKey(olc::Key::E).bPressed && (BuildMod == true)) 
+		if (GetKey(olc::Key::E).bPressed && (BuildMod == true))
 		{
 			if(CurrentBlock == 0)
 			{
@@ -300,18 +278,52 @@ public:
 		{
 		case State::NOT_STARTED:
 
-			Player.state = 1; // загатовка для главного меню
+			Player.state = State::STARTED; // загатовка для главного меню
 			break;
 
 		case State::STARTED:
-
-			Player.state = 2; // заготовка для катсцeны или типо того
-
+			
+			StartMenu();
 			break;
 
 		case State::OVERWORLD: //режим открытого мира
 
 			Clear(olc::DARK_BLUE); // очистка экран на сплошной цвет
+
+			if(GetKey(olc::Key::I).bPressed)
+			{
+				if (BuildMod == false)
+				{
+					BuildMod = true;
+					std::cout << "BuildMod activated" << std::endl;
+				}
+				else if (BuildMod = true)
+				{
+					BuildMod = false;
+					std::cout << "BuildMod DIACTIVATED" << std::endl;
+				}
+			}
+
+			if((EnterPressed == true) && (BuildMod == true))
+			{
+				if(IsBlock(CurrentBlock) == true)
+				{
+					World[int(Player.x)][int(Player.y)].block = CurrentBlock;
+				}
+				else
+				{	
+					if (CurrentBlock == Tile::NULLW)
+					{
+						World[int(Player.x)][int(Player.y)].obj = NULL;
+					}
+					else
+					{
+						World[int(Player.x)][int(Player.y)].obj = CurrentBlock;
+					}
+				}
+				EnterPressed = false;
+			}
+
 
 			OverworldControl(fElapsedTime);
 			DisplayWorld();
@@ -331,11 +343,9 @@ public:
 			Clear(olc::DARK_BLUE);
 			DisplayWorld();
 			DisplayPlayer();
-			for (int i = 0; i <= 480; i++)
-			{
-				DrawLine(i - 2300 + ((frame* frame) / 8), i, (i + 20) + ((frame * frame) / 8), i, olc::BLACK); // переделать функцию
-			}
-			if (frame == 60)
+			FillCircle(MidleX,MidleY, frame + frame, olc::BLACK);
+
+			if (frame == 240)
 			{
 				frame = 0;
 				Player.state = State::FIGHT;
@@ -349,13 +359,15 @@ public:
 			break;
 		}
 
+		FalseAll();
+		
 		return true;
 	}
 
 private:
 
 	// variables
-	Actor Player;
+	
 	std::unique_ptr<olc::Sprite> bridgew;		//Инициализация спрайтов
 	std::unique_ptr<olc::Sprite> alisaw;
 	std::unique_ptr<olc::Sprite> grassw;
@@ -374,7 +386,8 @@ private:
 	short KeyFrame;
 
 	Map World[256][256];		//Матрица для записи мира в файл
-
+	Actor Player;
+	
 	unsigned TileX;			//Размеры одного тайла, размещенного на дисплее
 	unsigned TileY;
 	unsigned MidleX;		//Нулевая координата мира
@@ -391,6 +404,9 @@ private:
 	bool UpPressed;
 	bool DownPressed;
 	bool EnterPressed;
+
+
+	bool InCredits;
 	//void functions
 
 	void DisplayWorld() // рисование мира
@@ -407,6 +423,77 @@ private:
 					SetPixelMode(olc::Pixel::NORMAL);
 				}
 			}
+		}
+	}
+
+	void DisplayFight()
+	{
+		
+	}
+
+	void StartMenu()
+	{
+		Clear(olc::BLACK);
+
+		
+		if(InCredits == true)
+		{
+			DrawString(MidleX - (TileX * 2), MidleY, "Game Developed by Vladimir_Maks, Overclocking_Infernale", olc::WHITE, 1);
+			DrawString(MidleX - (TileX * 2), MidleY - 20, "PixelGameEngine by OneLoneCoder", olc::WHITE, 1);
+			DrawString(MidleX - (TileX * 2), MidleY - 60, "Press Enter to return", olc::YELLOW, 1);
+			if(EnterPressed == true)
+			{
+				InCredits = false;
+				EnterPressed = false;
+			}
+		}
+		else
+		{
+			DrawString(MidleX - 40, MidleY, "PLAY", olc::WHITE, 2);
+			DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::WHITE, 2);
+			DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::WHITE, 2);
+		
+			switch(int(Player.y))
+			{
+			case 1:
+				DrawString(MidleX - 40, MidleY, "PLAY", olc::YELLOW, 2);
+				break;
+			case 2:
+				DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::YELLOW, 2);
+				break;
+			case 3:
+				DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::YELLOW, 2);
+				break;
+			}
+		}
+		if(KeyPressed == true)
+		{
+			if((UpPressed == true) && ((Player.y - 1) > 0))
+			{
+				Player.y -= 1;
+				UpPressed = false;
+			}
+			if((DownPressed == true) && ((Player.y + 1) < 4))
+			{
+				Player.y += 1;
+				DownPressed = false; 
+			}
+			if((EnterPressed == true) && (Player.y == 1))
+			{
+				Player.state = 2;
+				Player.y = 128;
+				Player.x = 128;
+			}
+			if((EnterPressed == true) && (Player.y == 2))
+			{
+				InCredits = true;
+				EnterPressed = false;
+			}
+			if((EnterPressed == true) && (Player.y) == 3)
+			{
+				exit(0);	
+			}
+			
 		}
 	}
 
@@ -435,7 +522,19 @@ private:
 				DownPressed = false;
 			}
 			KeyPressed = false;
+
+			if( World[int(Player.x)][int(Player.y)].block == Tile::GRASS)
+			{
+				unsigned random = rand() % 999 + 1;
+				std::cout << random << std::endl;
+				if(random <= 1)
+				{
+					Player.state = State::PRE_FIGHT;
+				}	
+			}
 		}
+		
+		
 	}
 
 	void DisplayPlayer()		//Отображение спрайта игрока
@@ -448,7 +547,11 @@ private:
 	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования
 	{
 		SetPixelMode(olc::Pixel::MASK);
-		DrawSprite(440,20, GetSprite(CurrentBlock), 0.5f, 0);
+		FillRect(0, 0, 480, 40, olc::BLACK);
+		DrawString(5,20, "Plr.X = " + std::to_string(int(Player.x)), olc::WHITE, 1.0f);
+		DrawString(5,30, "Plr.Y = " + std::to_string(int(Player.y)), olc::WHITE, 1.0f);
+		FillRect(416,17, 440, 57 , olc::DARK_GREEN);
+		DrawSprite(420, 20, GetSprite(CurrentBlock), 0.5f, 0);
 		SetPixelMode(olc::Pixel::NORMAL);
 	}
 
@@ -517,25 +620,13 @@ private:
 
 	std::string GetSign()			//Возвращает текст таблички из файла
 	{
-		FILE* file;
-		Actor buffer;
-		std::string note;
-		if(fopen_s(&file, "signs.bin", "r") == 0)
+		std::string note = "Hello, im a sign!";
+		if ((int(Player.x) == 128) && (int(Player.y) == 126))
 		{
-			int count = _filelength(_fileno(file)) / (sizeof(unsigned) + sizeof(unsigned) + sizeof(std::string));
-			for(int i = 0; i < count; i++)
-			{
-				fread(&buffer.x, sizeof(unsigned), 1, file);
-				fread(&buffer.y, sizeof(unsigned), 1, file);
-				fread(&note, sizeof(std::string), 1, file);
-				if((buffer.x == int(Player.x)) && (buffer.y == int(Player.y)))
-				{
-					return note;
-				}
-			}
+			note = "Arigato";
 		}
-		note = "I am a sign!";
 		return note;
+		
 	}
 
 	bool IsBlock(unsigned block)		// Удаляет объекты/энтити в режиме редактирования
@@ -551,10 +642,20 @@ private:
 			break;
 		}
 	}
+	
+	void FalseAll()
+	{
+		LPressed = false;
+		RPressed = false;
+		UpPressed = false;
+		DownPressed = false;
+		EnterPressed = false;
+	}
 };
 
 int main()
 {
+	srand(time(0));
 	Game go;
 	if (go.Construct(480, 480, 2, 2))		//Задает размеры видимой области игрового мира, а так же включает vsync
 	{
