@@ -305,7 +305,7 @@ public:
 
 		case State::STARTED:
 
-			Player.state = 2; // загатовка для катсцени или типо того
+			Player.state = 2; // заготовка для катсцeны или типо того
 
 			break;
 
@@ -317,7 +317,7 @@ public:
 			DisplayWorld();
 			DisplayPlayer();
 
-			if(BuildMod == true)
+			if(BuildMod == true)		//Отображение выбранного блока в режиме редактирования
 			{
 				DrawBuildHud();
 			}
@@ -327,7 +327,7 @@ public:
 			}
 
 			break;
-		case State::PRE_FIGHT:
+		case State::PRE_FIGHT:		
 			Clear(olc::DARK_BLUE);
 			DisplayWorld();
 			DisplayPlayer();
@@ -356,7 +356,7 @@ private:
 
 	// variables
 	Actor Player;
-	std::unique_ptr<olc::Sprite> bridgew;
+	std::unique_ptr<olc::Sprite> bridgew;		//Инициализация спрайтов
 	std::unique_ptr<olc::Sprite> alisaw;
 	std::unique_ptr<olc::Sprite> grassw;
 	std::unique_ptr<olc::Sprite> waterw;
@@ -367,26 +367,26 @@ private:
 	std::unique_ptr<olc::Sprite> treew;
 	std::unique_ptr<olc::Sprite> NULLw;
 
-	float fTargetFrameTime;
-	float fAccumulatedTime;
+	float fTargetFrameTime;			//Предсказуемое время кадров
+	float fAccumulatedTime;			//Время с момента запуска
 
 	short frame;
 	short KeyFrame;
 
-	Map World[256][256];
+	Map World[256][256];		//Матрица для записи мира в файл
 
-	unsigned TileX;
+	unsigned TileX;			//Размеры одного тайла, размещенного на дисплее
 	unsigned TileY;
-	unsigned MidleX;
+	unsigned MidleX;		//Нулевая координата мира
 	unsigned MidleY;
 
-	unsigned BlockTypes;
-	unsigned CurrentBlock;
+	unsigned BlockTypes;		//Типы блоков (не спрайтов), доступные в режим редактирования
+	unsigned CurrentBlock;		//Текущий блок в режиме редактирования
 
-	bool KeyPressed;
-	bool BuildMod;
+	bool KeyPressed;		//Нажатие любой клавиши
+	bool BuildMod;			//Режим редактирования
 
-	bool LPressed;
+	bool LPressed;			//Нажатие клавиш
 	bool RPressed;
 	bool UpPressed;
 	bool DownPressed;
@@ -438,27 +438,27 @@ private:
 		}
 	}
 
-	void DisplayPlayer()		//Рисование
+	void DisplayPlayer()		//Отображение спрайта игрока
 	{
 		SetPixelMode(olc::Pixel::MASK);
 		DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
 		SetPixelMode(olc::Pixel::NORMAL);
 	}
 
-	void DrawBuildHud()
+	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования
 	{
 		SetPixelMode(olc::Pixel::MASK);
 		DrawSprite(440,20, GetSprite(CurrentBlock), 0.5f, 0);
 		SetPixelMode(olc::Pixel::NORMAL);
 	}
 
-	void DisplaySign()
+	void DisplaySign()		//Отображает текст таблички/энтити в специальном окне
 	{
 		FillRect(20,360,440,440,olc::BLACK);
 		DrawString(30,370, GetSign(), olc::WHITE, 2);
 	}
 
-	olc::Sprite* GetSprite(unsigned SpriteID)
+	olc::Sprite* GetSprite(unsigned SpriteID)		//Возвращает спрайт при прорисовке мира
 	{
 		switch(SpriteID)
 		{
@@ -494,7 +494,7 @@ private:
 	}
 	
 
-	bool CollisionDetection(unsigned block)
+	bool CollisionDetection(unsigned block)			//Проверка на коллизии/отключение коллизий в режиме редактирования
 	{
 		if (BuildMod == true)
 		{
@@ -515,7 +515,7 @@ private:
 		}
 	}
 
-	std::string GetSign()
+	std::string GetSign()			//Возвращает текст таблички из файла
 	{
 		FILE* file;
 		Actor buffer;
@@ -538,7 +538,7 @@ private:
 		return note;
 	}
 
-	bool IsBlock(unsigned block)
+	bool IsBlock(unsigned block)		// Удаляет объекты/энтити в режиме редактирования
 	{
 		switch(block)
 		{
