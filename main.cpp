@@ -131,6 +131,8 @@ public:
 	{
 		InCredits = false;
 
+		SetPixelMode(olc::Pixel::MASK);
+
 		FillRect(0, 0, ScreenWidth(), ScreenHeight(), olc::BLACK);
 
 		TileX = ScreenWidth() / 5;			//Переменные середины дисплея
@@ -169,12 +171,6 @@ public:
 	{
 		
 
-		fAccumulatedTime += fElapsedTime;
-		if (fAccumulatedTime >= fTargetFrameTime)
-		{
-			fAccumulatedTime -= fTargetFrameTime;
-			fElapsedTime = fTargetFrameTime;
-		}
 		//std::cout << "AccumulatedTime = "<< fAccumulatedTime<<std::endl;
 		//std::cout << "ElapsedTime = " << fElapsedTime<<std::endl;
 	
@@ -182,11 +178,11 @@ public:
 
 		// ввод с клавы
 
-		if(GetKey(olc::Key::UP).bPressed && Player.state == 1){
+		if(GetKey(olc::Key::UP).bPressed && Player.state == State::STARTED){
 			UpPressed = true;
 			KeyPressed = true;
 		}
-		if(GetKey(olc::Key::DOWN).bPressed && Player.state == 1){
+		if(GetKey(olc::Key::DOWN).bPressed && Player.state == State::STARTED){
 			DownPressed = true;
 			KeyPressed = true;
 		}
@@ -197,7 +193,7 @@ public:
 			std::cin >> Player.state;
 			if (Player.state == 3)
 			{
-				frame = 0;
+				timer = 0;
 			}
 		}
 
@@ -205,22 +201,23 @@ public:
 		{
 			EnterPressed = true;
 		}
-		else if (GetKey(olc::Key::LEFT).bHeld && Player.state == 2)
+		else if (GetKey(olc::Key::LEFT).bHeld && (Player.state == State::OVERWORLD))
 		{
+
 			LPressed = true;
 			KeyPressed = true;
 		}
-		else if (GetKey(olc::Key::RIGHT).bHeld && Player.state == 2)
+		else if (GetKey(olc::Key::RIGHT).bHeld && (Player.state == State::OVERWORLD))
 		{
 			RPressed = true;
 			KeyPressed = true;
 		}
-		else if (GetKey(olc::Key::UP).bHeld && Player.state == 2)
+		else if (GetKey(olc::Key::UP).bHeld && (Player.state == State::OVERWORLD))
 		{
 			UpPressed = true;
 			KeyPressed = true;
 		}
-		else if (GetKey(olc::Key::DOWN).bHeld && Player.state == 2)
+		else if (GetKey(olc::Key::DOWN).bHeld && (Player.state == State::OVERWORLD))
 		{
 			DownPressed = true;
 			KeyPressed = true;
@@ -271,6 +268,18 @@ public:
 			{
 				CurrentBlock++;
 			}
+		}
+
+
+		fAccumulatedTime += fElapsedTime;
+		if (fAccumulatedTime >= fTargetFrameTime)
+		{
+			fAccumulatedTime -= fTargetFrameTime;
+			fElapsedTime = fTargetFrameTime;
+		}
+		else
+		{
+			return true;
 		}
 
 		//обработка логики мира
@@ -339,19 +348,22 @@ public:
 			}
 
 			break;
-		case State::PRE_FIGHT:		
+
+		case State::PRE_FIGHT:		// всплывающий круг перед битвой
+
+			
 			Clear(olc::DARK_BLUE);
 			DisplayWorld();
 			DisplayPlayer();
-			FillCircle(MidleX,MidleY, frame + frame, olc::BLACK);
-
-			if (frame == 240)
+			FillCircle(MidleX,MidleY, ((timer + sin(timer)) * 4) * 40, olc::BLACK);
+			if (timer >= 2.0f)
 			{
-				frame = 0;
+				timer = 0;
 				Player.state = State::FIGHT;
 			}
-			frame++;
+			timer += fElapsedTime;
 			break;
+
 		case State::FIGHT:// режим битвы
 			
 			Clear(olc::BLACK);
@@ -381,8 +393,8 @@ private:
 
 	float fTargetFrameTime;			//Предсказуемое время кадров
 	float fAccumulatedTime;			//Время с момента запуска
+	float timer;
 
-	short frame;
 	short KeyFrame;
 
 	Map World[256][256];		//Матрица для записи мира в файл
@@ -418,9 +430,7 @@ private:
 				DrawSprite((j - (int(Player.x) - 2)) * TileX, (i - (int(Player.y) - 2)) * TileY, GetSprite(World[j][i].block), ((TileX / 48) * 1.0f), 0);
 				if(World[j][i].obj != NULL)
 				{
-					SetPixelMode(olc::Pixel::MASK);
 					DrawSprite((j - (int(Player.x) - 2)) * TileX, (i - (int(Player.y) - 2)) * TileY, GetSprite(World[j][i].obj), ((TileX / 48) * 1.0f), 0);
-					SetPixelMode(olc::Pixel::NORMAL);
 				}
 			}
 		}
@@ -435,12 +445,12 @@ private:
 	{
 		Clear(olc::BLACK);
 
-		
+		std::cout << Player.y << std::endl;
 		if(InCredits == true)
 		{
-			DrawString(MidleX - (TileX * 2), MidleY, "Game Developed by Vladimir_Maks, Overclocking_Infernale", olc::WHITE, 1);
-			DrawString(MidleX - (TileX * 2), MidleY - 20, "PixelGameEngine by OneLoneCoder", olc::WHITE, 1);
-			DrawString(MidleX - (TileX * 2), MidleY - 60, "Press Enter to return", olc::YELLOW, 1);
+			DrawString(10, MidleY - 20, "Game Developed by Vladimir_Maks, Overclocking_Infernale", olc::WHITE, 1);
+			DrawString(10, MidleY, "PixelGameEngine by OneLineCoder", olc::WHITE, 1);
+			DrawString(25, MidleY - 60, "Press Enter to return", olc::YELLOW, 1);
 			if(EnterPressed == true)
 			{
 				InCredits = false;
@@ -449,47 +459,47 @@ private:
 		}
 		else
 		{
+			DrawString(MidleX - 110, MidleY - 80, "AlisaG", olc::GREY, 5);
 			DrawString(MidleX - 40, MidleY, "PLAY", olc::WHITE, 2);
 			DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::WHITE, 2);
 			DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::WHITE, 2);
+			DrawSprite(MidleX + 110, MidleY - 79, alisaw.get(), 1, 0);
 		
-			switch(int(Player.y))
+			if (Player.y >= 2.5f)
 			{
-			case 1:
-				DrawString(MidleX - 40, MidleY, "PLAY", olc::YELLOW, 2);
-				break;
-			case 2:
-				DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::YELLOW, 2);
-				break;
-			case 3:
 				DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::YELLOW, 2);
-				break;
+			} 
+			else if (Player.y >= 1.5f)
+			{
+				DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::YELLOW, 2);
+			}
+			else if (Player.y >= 0.5f)
+			{
+				DrawString(MidleX - 40, MidleY, "PLAY", olc::YELLOW, 2);	
 			}
 		}
 		if(KeyPressed == true)
 		{
-			if((UpPressed == true) && ((Player.y - 1) > 0))
+			if((UpPressed == true) && ((Player.y - 1.0f) > 0.0f))
 			{
 				Player.y -= 1;
-				UpPressed = false;
 			}
-			if((DownPressed == true) && ((Player.y + 1) < 4))
+			if((DownPressed == true) && ((Player.y + 1.0f) < 4.f))
 			{
 				Player.y += 1;
-				DownPressed = false; 
 			}
-			if((EnterPressed == true) && (Player.y == 1))
+			if((EnterPressed == true) && ((Player.y >= 0.5f) && (Player.y < 1.5f)))
 			{
 				Player.state = 2;
 				Player.y = 128;
 				Player.x = 128;
 			}
-			if((EnterPressed == true) && (Player.y == 2))
+			if((EnterPressed == true) && ((Player.y >= 1.5f) && (Player.y < 2.5f)))
 			{
 				InCredits = true;
 				EnterPressed = false;
 			}
-			if((EnterPressed == true) && (Player.y) == 3)
+			if((EnterPressed == true) && ((Player.y >= 2.5f) && (Player.y < 4)))
 			{
 				exit(0);	
 			}
@@ -539,20 +549,20 @@ private:
 
 	void DisplayPlayer()		//Отображение спрайта игрока
 	{
-		SetPixelMode(olc::Pixel::MASK);
+		
 		DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
-		SetPixelMode(olc::Pixel::NORMAL);
+		
 	}
 
 	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования
 	{
-		SetPixelMode(olc::Pixel::MASK);
+		
 		FillRect(0, 0, 480, 40, olc::BLACK);
 		DrawString(5,20, "Plr.X = " + std::to_string(int(Player.x)), olc::WHITE, 1.0f);
 		DrawString(5,30, "Plr.Y = " + std::to_string(int(Player.y)), olc::WHITE, 1.0f);
 		FillRect(416,17, 440, 57 , olc::DARK_GREEN);
 		DrawSprite(420, 20, GetSprite(CurrentBlock), 0.5f, 0);
-		SetPixelMode(olc::Pixel::NORMAL);
+		
 	}
 
 	void DisplaySign()		//Отображает текст таблички/энтити в специальном окне
