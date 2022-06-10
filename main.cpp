@@ -6,7 +6,9 @@ struct Actor// упрощения хранения координат игрок
 {
 	float x;
 	float y;
+	float menuY;
 	unsigned state; // отвечает за текущее состояние игрока (enum Player) 
+	
 };
 
 struct Map
@@ -54,9 +56,10 @@ public:
 		BlockTypes = 8;
 		CurrentBlock = 0;
 
-		Player.x = 1;
-		Player.y = 1;
+		Player.x = 128;
+		Player.y = 128;
 		Player.state = 0;
+		Player.menuY = 1;
 
 		FILE* file;
 		if (fopen_s(&file, "map.bin", "r") == 0)
@@ -133,7 +136,7 @@ public:
 
 		SetPixelMode(olc::Pixel::MASK);
 
-		FillRect(0, 0, ScreenWidth(), ScreenHeight(), olc::BLACK);
+		FillRect(0, 0, ScreenWidth() + 20, ScreenHeight() + 20, olc::BLACK);	//
 
 		TileX = ScreenWidth() / 5;			//Переменные середины дисплея
 		TileY = ScreenHeight() / 5;
@@ -144,7 +147,7 @@ public:
 
 		BuildMod = false;
 
-		std::cout << "Tile x = " << TileX << std::endl;		//Типо дебаг
+		std::cout << "Tile x = " << TileX << std::endl;	//Типо дебаг
 		std::cout << "Tile y = " << TileY << std::endl;
 		std::cout << "Midle X = " << MidleX << std::endl;
 		std::cout << "Midle Y = " << MidleY << std::endl;
@@ -163,6 +166,8 @@ public:
 		OldRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/OldRoad.png");
 		treew = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/Treew.png");
 		NULLw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/NULLw.png");
+		alisaFight = std::make_unique<olc::Sprite>("./Sprites/player/BattlePlayer.png");
+		floppa = std::make_unique<olc::Sprite>("./Sprites/Enemies/Floppa.png");
 		
 		return true;
 	}
@@ -287,7 +292,7 @@ public:
 		{
 		case State::NOT_STARTED:
 
-			Player.state = State::STARTED; // загатовка для главного меню
+			Player.state = State::STARTED; // Главное меню
 			break;
 
 		case State::STARTED:
@@ -364,10 +369,11 @@ public:
 			timer += fElapsedTime;
 			break;
 
-		case State::FIGHT:// режим битвы
+		case State::FIGHT:		// режим битвы (В РАЗРАБОТКЕ)
 			
 			Clear(olc::BLACK);
-			DrawString(MidleX,	MidleY, "FIGHT MODE", olc::WHITE, 2);
+			DisplayFight();
+
 			break;
 		}
 
@@ -390,10 +396,12 @@ private:
 	std::unique_ptr<olc::Sprite> alisawRight;
 	std::unique_ptr<olc::Sprite> treew;
 	std::unique_ptr<olc::Sprite> NULLw;
+	std::unique_ptr<olc::Sprite> alisaFight;
+	std::unique_ptr<olc::Sprite> floppa;
 
 	float fTargetFrameTime;			//Предсказуемое время кадров
 	float fAccumulatedTime;			//Время с момента запуска
-	float timer;
+	float timer;					//Принимает значение ElapsedTime в момент вызова
 
 	short KeyFrame;
 
@@ -402,7 +410,7 @@ private:
 	
 	unsigned TileX;			//Размеры одного тайла, размещенного на дисплее
 	unsigned TileY;
-	unsigned MidleX;		//Нулевая координата мира
+	unsigned MidleX;		//Центр прорисовки мира
 	unsigned MidleY;
 
 	unsigned BlockTypes;		//Типы блоков (не спрайтов), доступные в режим редактирования
@@ -418,7 +426,7 @@ private:
 	bool EnterPressed;
 
 
-	bool InCredits;
+	bool InCredits;			//Контрольная переменная для показа титров в главном меню
 	//void functions
 
 	void DisplayWorld() // рисование мира
@@ -438,14 +446,46 @@ private:
 
 	void DisplayFight()
 	{
+		std::cout << Player.menuY << std::endl;
+		DisplayPlayer();
+		DisplayEnemy();
+
+		DrawRect(2, 380, 477, 475, olc::WHITE);
+		DrawRect(3, 381, 476, 475, olc::WHITE);
+		DrawString(8, 390, "ATTACK", olc::WHITE, 2);
+		DrawString(8, 410, "HEAL", olc::WHITE, 2);
+		DrawString(8, 430, "FLEE", olc::WHITE, 2);
 		
+		switch(int(Player.menuY)){
+			case 1:
+				DrawString(8, 390, "ATTACK", olc::YELLOW, 2);
+				break;
+			case 2:
+				DrawString(8, 410, "HEAL", olc::YELLOW, 2);
+				break;
+			case 3:
+				DrawString(8, 430, "FLEE", olc::YELLOW, 2);
+				break;
+		}
+		if(KeyPressed == true)		//Выбор меню
+			{
+				if((UpPressed == true) && ((Player.menuY - 1.0f) > 0.0f))
+				{
+					Player.menuY -= 1;
+				}
+				if((DownPressed == true) && ((Player.menuY + 1.0f) < 4.0f))
+				{
+					Player.menuY += 1;
+				}
+					
+			}
 	}
 
-	void StartMenu()
+	void StartMenu()		//Отображает меню
 	{
 		Clear(olc::BLACK);
 
-		std::cout << Player.y << std::endl;
+		std::cout << Player.menuY << std::endl;
 		if(InCredits == true)
 		{
 			DrawString(10, MidleY - 20, "Game Developed by Vladimir_Maks, Overclocking_Infernale", olc::WHITE, 1);
@@ -465,51 +505,50 @@ private:
 			DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::WHITE, 2);
 			DrawSprite(MidleX + 110, MidleY - 79, alisaw.get(), 1, 0);
 		
-			if (Player.y >= 2.5f)
+			if (Player.menuY >= 2.5f)
 			{
 				DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::YELLOW, 2);
 			} 
-			else if (Player.y >= 1.5f)
+			else if (Player.menuY >= 1.5f)
 			{
 				DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::YELLOW, 2);
 			}
-			else if (Player.y >= 0.5f)
+			else if (Player.menuY >= 0.5f)
 			{
-				DrawString(MidleX - 40, MidleY, "PLAY", olc::YELLOW, 2);	
+				DrawString(MidleX - 40, MidleY, "PLAY", olc::YELLOW, 2);
 			}
 		}
-		if(KeyPressed == true)
+		if(KeyPressed == true)		//Выбор меню
 		{
-			if((UpPressed == true) && ((Player.y - 1.0f) > 0.0f))
+			if((UpPressed == true) && ((Player.menuY - 1.0f) > 0.0f))
 			{
-				Player.y -= 1;
+				Player.menuY -= 1;
 			}
-			if((DownPressed == true) && ((Player.y + 1.0f) < 4.f))
+			if((DownPressed == true) && ((Player.menuY + 1.0f) < 4.0f))
 			{
-				Player.y += 1;
+				Player.menuY += 1;
 			}
-			if((EnterPressed == true) && ((Player.y >= 0.5f) && (Player.y < 1.5f)))
+			if((EnterPressed == true) && ((Player.menuY >= 0.5f) && (Player.menuY < 1.5f)))
 			{
 				Player.state = 2;
-				Player.y = 128;
-				Player.x = 128;
+				
 			}
-			if((EnterPressed == true) && ((Player.y >= 1.5f) && (Player.y < 2.5f)))
+			if((EnterPressed == true) && ((Player.menuY >= 1.5f) && (Player.menuY < 2.5f)))
 			{
 				InCredits = true;
 				EnterPressed = false;
 			}
-			if((EnterPressed == true) && ((Player.y >= 2.5f) && (Player.y < 4)))
+			if((EnterPressed == true) && ((Player.menuY >= 2.5f) && (Player.menuY < 4.0f)))
 			{
-				exit(0);	
+				exit(0);
 			}
 			
 		}
 	}
 
-	void OverworldControl(float fElapsedTime)
+	void OverworldControl(float fElapsedTime)	//Управление/Перемещение по миру
 	{
-		if (KeyPressed == true)		//Управление/Перемещение по миру
+		if (KeyPressed == true)		
 		{
 			if (LPressed == true && (CollisionDetection(World[int(Player.x - 1)][int(Player.y)].block) != false))
 			{
@@ -550,11 +589,21 @@ private:
 	void DisplayPlayer()		//Отображение спрайта игрока
 	{
 		
-		DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
-		
+		if(Player.state == 2)
+		{
+			DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
+		} else if(Player.state == 4)
+		{
+			DrawSprite(MidleX - (2 * TileX), MidleY + (TileY / 2), alisaFight.get(), TileX / 18);
+		}
+	}
+	
+	void DisplayEnemy()
+	{
+		DrawSprite(MidleX + TileX, MidleY - TileY, floppa.get(), TileX/32);
 	}
 
-	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования
+	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования/Показывает координаты игрока
 	{
 		
 		FillRect(0, 0, 480, 40, olc::BLACK);
