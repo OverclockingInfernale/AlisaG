@@ -6,7 +6,6 @@ struct Actor// упрощения хранения координат игрок
 {
 	float x;
 	float y;
-	float menuY;
 	unsigned state; // отвечает за текущее состояние игрока (enum Player) 
 	
 };
@@ -34,6 +33,20 @@ public:
 		TREE = 8,
 	};
 
+	enum Battle
+	{
+		MAIN = 0,
+		ATTACK = 1,
+		HEAL = 2,
+		FLEE = 3,
+	};
+	enum Icon
+	{
+		ATTACKICON = 0,
+		BLOCKICON = 1,
+		DODGEICON = 2,
+	};
+
 	enum Player // енам состояния игрока
 	{
 		FREE = 0,
@@ -56,10 +69,13 @@ public:
 		BlockTypes = 8;
 		CurrentBlock = 0;
 
+
+		Menu.x = 1;
+		Menu.y = 1;
+		Menu.state = 0;
 		Player.x = 128;
 		Player.y = 128;
 		Player.state = 0;
-		Player.menuY = 1;
 
 		FILE* file;
 		if (fopen_s(&file, "map.bin", "r") == 0)
@@ -168,6 +184,9 @@ public:
 		NULLw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/NULLw.png");
 		alisaFight = std::make_unique<olc::Sprite>("./Sprites/player/BattlePlayer.png");
 		floppa = std::make_unique<olc::Sprite>("./Sprites/Enemies/Floppa.png");
+		attackIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconAttack.png");
+		blockIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconBlock.png");
+		dodgeIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconDodge.png");
 		
 		return true;
 	}
@@ -183,11 +202,13 @@ public:
 
 		// ввод с клавы
 
-		if(GetKey(olc::Key::UP).bPressed && Player.state == State::STARTED){
+		if(GetKey(olc::Key::UP).bPressed)
+		{
 			UpPressed = true;
 			KeyPressed = true;
 		}
-		if(GetKey(olc::Key::DOWN).bPressed && Player.state == State::STARTED){
+		if(GetKey(olc::Key::DOWN).bPressed)
+		{
 			DownPressed = true;
 			KeyPressed = true;
 		}
@@ -208,7 +229,6 @@ public:
 		}
 		else if (GetKey(olc::Key::LEFT).bHeld && (Player.state == State::OVERWORLD))
 		{
-
 			LPressed = true;
 			KeyPressed = true;
 		}
@@ -335,9 +355,10 @@ public:
 						World[int(Player.x)][int(Player.y)].obj = CurrentBlock;
 					}
 				}
+				
 				EnterPressed = false;
+				
 			}
-
 
 			OverworldControl(fElapsedTime);
 			DisplayWorld();
@@ -376,9 +397,6 @@ public:
 
 			break;
 		}
-
-		FalseAll();
-		
 		return true;
 	}
 
@@ -398,6 +416,9 @@ private:
 	std::unique_ptr<olc::Sprite> NULLw;
 	std::unique_ptr<olc::Sprite> alisaFight;
 	std::unique_ptr<olc::Sprite> floppa;
+	std::unique_ptr<olc::Sprite> attackIcon;
+	std::unique_ptr<olc::Sprite> blockIcon;
+	std::unique_ptr<olc::Sprite> dodgeIcon;
 
 	float fTargetFrameTime;			//Предсказуемое время кадров
 	float fAccumulatedTime;			//Время с момента запуска
@@ -407,6 +428,7 @@ private:
 
 	Map World[256][256];		//Матрица для записи мира в файл
 	Actor Player;
+	Actor Menu;
 	
 	unsigned TileX;			//Размеры одного тайла, размещенного на дисплее
 	unsigned TileY;
@@ -446,46 +468,82 @@ private:
 
 	void DisplayFight()
 	{
-		std::cout << Player.menuY << std::endl;
+		
 		DisplayPlayer();
 		DisplayEnemy();
 
-		DrawRect(2, 380, 477, 475, olc::WHITE);
-		DrawRect(3, 381, 476, 475, olc::WHITE);
-		DrawString(8, 390, "ATTACK", olc::WHITE, 2);
-		DrawString(8, 410, "HEAL", olc::WHITE, 2);
-		DrawString(8, 430, "FLEE", olc::WHITE, 2);
+		DrawRect(2, 350, 477, 435, olc::WHITE);
+		DrawRect(3, 351, 476, 435, olc::WHITE);
 		
-		switch(int(Player.menuY)){
-			case 1:
-				DrawString(8, 390, "ATTACK", olc::YELLOW, 2);
+		
+		switch (Menu.state)
+		{
+			case Battle::MAIN:
+				switch(int(Menu.y))
+				{
+					case 1:
+						DrawString(40, 360, "ATTACK", olc::YELLOW, 2);
+						DrawString(32, 380, "HEAL", olc::WHITE, 2);
+						DrawString(32, 400, "FLEE", olc::WHITE, 2);
+						DrawSprite(12, 360, GetIcon(Icon::ATTACKICON), 2);
+						break;
+					case 2:
+						DrawString(32, 360, "ATTACK", olc::WHITE, 2);
+						DrawString(40, 380, "HEAL", olc::YELLOW, 2);
+						DrawString(32, 400, "FLEE", olc::WHITE, 2);
+						break;
+					case 3:
+						DrawString(32, 360, "ATTACK", olc::WHITE, 2);
+						DrawString(32, 380, "HEAL", olc::WHITE, 2);
+						DrawString(40, 400, "FLEE", olc::YELLOW, 2);
+						break;
+				}
+				if(KeyPressed == true)		//Выбор меню
+				{
+					if((UpPressed == true) && ((Menu.y - 1.0f) > 0.0f))
+					{
+						Menu.y -= 1.0f;
+						UpPressed = false;
+					}
+					if((DownPressed == true) && ((Menu.y + 1.0f) < 4.0f))
+					{
+						Menu.y += 1.0f;
+						DownPressed = false;
+					}
+					if(EnterPressed == true)
+					{
+						Menu.state = int(Menu.y);
+						EnterPressed = false;
+					}
+					KeyPressed = false;
+				}
+			break;
+		}
+	}
+
+	olc::Sprite* GetIcon(unsigned SpriteID)
+	{
+		switch(SpriteID)
+		{
+			case Icon::ATTACKICON:
+				return attackIcon.get();
 				break;
-			case 2:
-				DrawString(8, 410, "HEAL", olc::YELLOW, 2);
+			case Icon::BLOCKICON:
+				return blockIcon.get();
 				break;
-			case 3:
-				DrawString(8, 430, "FLEE", olc::YELLOW, 2);
+			case Icon::DODGEICON:
+				return dodgeIcon.get();
+				break;
+			default:
+				return NULLw.get();
 				break;
 		}
-		if(KeyPressed == true)		//Выбор меню
-			{
-				if((UpPressed == true) && ((Player.menuY - 1.0f) > 0.0f))
-				{
-					Player.menuY -= 1;
-				}
-				if((DownPressed == true) && ((Player.menuY + 1.0f) < 4.0f))
-				{
-					Player.menuY += 1;
-				}
-					
-			}
 	}
 
 	void StartMenu()		//Отображает меню
 	{
 		Clear(olc::BLACK);
 
-		std::cout << Player.menuY << std::endl;
 		if(InCredits == true)
 		{
 			DrawString(10, MidleY - 20, "Game Developed by Vladimir_Maks, Overclocking_Infernale", olc::WHITE, 1);
@@ -505,40 +563,42 @@ private:
 			DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::WHITE, 2);
 			DrawSprite(MidleX + 110, MidleY - 79, alisaw.get(), 1, 0);
 		
-			if (Player.menuY >= 2.5f)
+			if (Menu.y >= 2.5f)
 			{
 				DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::YELLOW, 2);
 			} 
-			else if (Player.menuY >= 1.5f)
+			else if (Menu.y >= 1.5f)
 			{
 				DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::YELLOW, 2);
 			}
-			else if (Player.menuY >= 0.5f)
+			else if (Menu.y >= 0.5f)
 			{
 				DrawString(MidleX - 40, MidleY, "PLAY", olc::YELLOW, 2);
 			}
 		}
 		if(KeyPressed == true)		//Выбор меню
 		{
-			if((UpPressed == true) && ((Player.menuY - 1.0f) > 0.0f))
+			if((UpPressed == true) && ((Menu.y - 1.0f) > 0.0f))
 			{
-				Player.menuY -= 1;
+				Menu.y -= 1;
+				UpPressed = false;
 			}
-			if((DownPressed == true) && ((Player.menuY + 1.0f) < 4.0f))
+			if((DownPressed == true) && ((Menu.y + 1.0f) < 4.0f))
 			{
-				Player.menuY += 1;
+				Menu.y += 1;
+				DownPressed = false;
 			}
-			if((EnterPressed == true) && ((Player.menuY >= 0.5f) && (Player.menuY < 1.5f)))
+			if((EnterPressed == true) && ((Menu.y >= 0.5f) && (Menu.y < 1.5f)))
 			{
 				Player.state = 2;
-				
+				EnterPressed = false;
 			}
-			if((EnterPressed == true) && ((Player.menuY >= 1.5f) && (Player.menuY < 2.5f)))
+			if((EnterPressed == true) && ((Menu.y >= 1.5f) && (Menu.y < 2.5f)))
 			{
 				InCredits = true;
 				EnterPressed = false;
 			}
-			if((EnterPressed == true) && ((Player.menuY >= 2.5f) && (Player.menuY < 4.0f)))
+			if((EnterPressed == true) && ((Menu.y >= 2.5f) && (Menu.y < 4.0f)))
 			{
 				exit(0);
 			}
@@ -589,18 +649,19 @@ private:
 	void DisplayPlayer()		//Отображение спрайта игрока
 	{
 		
-		if(Player.state == 2)
+		if(Player.state == State::OVERWORLD)
 		{
 			DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
-		} else if(Player.state == 4)
+		}
+		else if(Player.state == State::FIGHT)
 		{
-			DrawSprite(MidleX - (2 * TileX), MidleY + (TileY / 2), alisaFight.get(), TileX / 18);
+			DrawSprite(MidleX - (2 * TileX), MidleY - (TileY / 48), alisaFight.get(), TileX / 18);
 		}
 	}
 	
 	void DisplayEnemy()
 	{
-		DrawSprite(MidleX + TileX, MidleY - TileY, floppa.get(), TileX/32);
+		DrawSprite(MidleX + TileX, MidleY - (TileY * 2), floppa.get(), TileX/32);
 	}
 
 	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования/Показывает координаты игрока
@@ -648,7 +709,7 @@ private:
 			case Tile::TREE:
 				return treew.get();
 				break;
-			case Tile::NULLW:
+			case Tile::NULLW: // Нуллв это спрайт никакого объекта тоесть ну ничего
 				return NULLw.get();
 			default:
 				return waterw.get();
@@ -702,14 +763,6 @@ private:
 		}
 	}
 	
-	void FalseAll()
-	{
-		LPressed = false;
-		RPressed = false;
-		UpPressed = false;
-		DownPressed = false;
-		EnterPressed = false;
-	}
 };
 
 int main()
