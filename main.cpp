@@ -6,19 +6,40 @@ struct Actor// упрощения хранения координат игрок
 {
 	float x;
 	float y;
-	unsigned state; // отвечает за текущее состояние игрока (enum Player) 
-	
+	unsigned state; // отвечает за текущее состояние игрока (enum Player) или (enum Battle)
+	unsigned CurrentHP;
+	unsigned maxHP;
+	unsigned dmg;
+	unsigned block;
+	unsigned lvl;
+};
+
+struct Rival	//Enemy stats
+{
+	unsigned CurrentEnemy;
+	int hp;
+	int maxhp;
+	unsigned dmg;
+	unsigned def;
+	unsigned lvl;
 };
 
 struct Map
 {
-	unsigned block;// ячейка хранения блоков
-	unsigned obj;// ячейка хранения объектов
+	unsigned block;	// ячейка хранения блоков
+	unsigned obj;	// ячейка хранения объектов
 };
 
 class Game : public olc::PixelGameEngine
 {
 public:
+
+	enum Enemy
+	{
+		FLOPPA = 0,
+		BINGUS = 1,
+		SOGGA = 2,
+	};
 
 	enum Tile // енам мира
 	{
@@ -40,28 +61,27 @@ public:
 		HEAL = 2,
 		FLEE = 3,
 	};
+
 	enum Icon
 	{
 		ATTACKICON = 0,
-		BLOCKICON = 1,
-		DODGEICON = 2,
+		HEALICON = 1,
+		FLEEICON = 2,
+		BITEICON = 3,
+		CLAWICON = 4,
+		BLOCKICON = 5,
+		DODGEICON = 6,
 	};
 
-	enum Player // енам состояния игрока
-	{
-		FREE = 0,
-		IN_MENU = 1,
-		IN_FIGHT = 2,
-		DIED = 3,
-	};
-
-	enum State // енам состояния игры
+	enum State // енам состояния игры2
 	{
 		NOT_STARTED = 0,
 		STARTED = 1,
 		OVERWORLD = 2,
-		PRE_FIGHT = 3,
-		FIGHT = 4,
+		OVERWORLD_MENU = 3,
+		PRE_FIGHT = 4,
+		FIGHT = 5,
+		POST_FIGHT = 6,
 	};
 
 	Game() // конструктор класса
@@ -69,13 +89,30 @@ public:
 		BlockTypes = 8;
 		CurrentBlock = 0;
 
+		Enemy.CurrentEnemy = 0;
+		Enemy.def = 0;
+		Enemy.hp = 0;
+		Enemy.lvl = 1;
+		Enemy.dmg = 0;
+		Enemy.maxhp = 0;
 
 		Menu.x = 1;
 		Menu.y = 1;
 		Menu.state = 0;
+		
 		Player.x = 128;
-		Player.y = 128;
+		Player.y = 128;		
 		Player.state = 0;
+		
+		Player.maxHP = 100;
+		Player.CurrentHP = Player.maxHP;
+		Player.dmg = 12;
+		Player.lvl = 1;
+
+		Menu.maxHP = 0;
+		Menu.CurrentHP = 0;
+		Menu.dmg = 0;
+		Menu.lvl = 0;
 
 		FILE* file;
 		if (fopen_s(&file, "map.bin", "r") == 0)
@@ -136,7 +173,9 @@ public:
 		RPressed = false;
 		UpPressed = false;
 		DownPressed = false;
-
+		EscPressed = false;
+		IPressed = false;
+		
 		KeyPressed = false;
 		
 	}
@@ -170,31 +209,47 @@ public:
 		std::cout << "Player.x = " << Player.x << std::endl;
 		std::cout << "Player.y = " << Player.y << std::endl;
 		std::cout << "Player pos = " << MidleX - (TileX / 4) << "   " << MidleY - (TileY / 4) << "   " << MidleX << "   " << MidleY << std::endl;
+		
+// указание пути размещения спрайтов
+		
+//Player
+		alisaw = std::make_unique<olc::Sprite>("./Sprites/player/playerc.png");	
+		alisaFight = std::make_unique<olc::Sprite>("./Sprites/player/BattlePlayer.png");	
 
-		// указание пути размещения спрайтов
-
-		alisaw = std::make_unique<olc::Sprite>("./Sprites/player/playerc.png");
-		waterw = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/waterw.png");
+//Blocks
+		waterw = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/waterw.png");		
 		grassw = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/grassw.png");
 		bridgew = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/bridgew.png");
-		signw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/signw.png");
+		
 		BrokenRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/BrokenRoad.png");
 		OldRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/OldRoad.png");
 		treew = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/Treew.png");
+
+//Objects		
+		signw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/signw.png");
 		NULLw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/NULLw.png");
-		alisaFight = std::make_unique<olc::Sprite>("./Sprites/player/BattlePlayer.png");
-		floppa = std::make_unique<olc::Sprite>("./Sprites/Enemies/Floppa.png");
-		attackIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconAttack.png");
+		
+//Enemies
+		floppa = std::make_unique<olc::Sprite>("./Sprites/Enemies/Floppa.png");		
+		bingus = std::make_unique<olc::Sprite>("./Sprites/Enemies/Bingus.png");
+		sogga = std::make_unique<olc::Sprite>("./Sprites/Enemies/Sogga.png");
+
+//Icons
+		attackIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconAttack.png");		
 		blockIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconBlock.png");
 		dodgeIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconDodge.png");
+		healIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconHeal.png");
+		biteIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconBite.png");
+		clawIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconClaw.png");
+		fleeIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconFlee.png");
 		
+// Вывод захапанной памяти всей игрой
+		std::cout<< "size of game in memory "<< sizeof(*this)<<std::endl;
 		return true;
 	}
 
 	bool OnUserUpdate(float fElapsedTime) override // вызов каждый божий кадр
 	{
-		
-
 		//std::cout << "AccumulatedTime = "<< fAccumulatedTime<<std::endl;
 		//std::cout << "ElapsedTime = " << fElapsedTime<<std::endl;
 	
@@ -221,6 +276,17 @@ public:
 			{
 				timer = 0;
 			}
+		}
+
+		if(GetKey(olc::Key::I).bPressed)
+		{
+			IPressed = true;
+		}
+
+		if(GetKey(olc::Key::ESCAPE).bPressed)
+		{
+			EscPressed = true;
+			
 		}
 
 		if(GetKey(olc::Key::ENTER).bPressed)
@@ -283,7 +349,7 @@ public:
 				CurrentBlock--;
 			}
 		}
-		if (GetKey(olc::Key::R).bPressed && BuildMod)
+		if (GetKey(olc::Key::R).bPressed && (BuildMod == true))
 		{
 			if(CurrentBlock == BlockTypes)
 			{
@@ -295,7 +361,6 @@ public:
 			}
 		}
 
-
 		fAccumulatedTime += fElapsedTime;
 		if (fAccumulatedTime >= fTargetFrameTime)
 		{
@@ -306,8 +371,10 @@ public:
 		{
 			return true;
 		}
+		Clear(olc::BLACK);
 
-		//обработка логики мира
+		//основной свитч прорисовки игры
+
 		switch (Player.state)
 		{
 		case State::NOT_STARTED:
@@ -324,7 +391,7 @@ public:
 
 			Clear(olc::DARK_BLUE); // очистка экран на сплошной цвет
 
-			if(GetKey(olc::Key::I).bPressed)
+			if(IPressed == true)
 			{
 				if (BuildMod == false)
 				{
@@ -336,6 +403,7 @@ public:
 					BuildMod = false;
 					std::cout << "BuildMod DIACTIVATED" << std::endl;
 				}
+				IPressed = false;
 			}
 
 			if((EnterPressed == true) && (BuildMod == true))
@@ -355,9 +423,14 @@ public:
 						World[int(Player.x)][int(Player.y)].obj = CurrentBlock;
 					}
 				}
-				
 				EnterPressed = false;
-				
+			} 
+			else if(EnterPressed == true)
+			{
+				Player.state = State::OVERWORLD_MENU;
+				EnterPressed = false;
+				BuildMod = false;
+				Menu.y = 0;
 			}
 
 			OverworldControl(fElapsedTime);
@@ -373,17 +446,24 @@ public:
 				DisplaySign();
 			}
 
-			break;
+		break;
+
+		case State::OVERWORLD_MENU:
+			DisplayWorld();
+			DisplayPlayer();
+			DisplayMenu();
+			
+		break;
 
 		case State::PRE_FIGHT:		// всплывающий круг перед битвой
 
-			
 			Clear(olc::DARK_BLUE);
 			DisplayWorld();
 			DisplayPlayer();
 			FillCircle(MidleX,MidleY, ((timer + sin(timer)) * 4) * 40, olc::BLACK);
 			if (timer >= 2.0f)
 			{
+				PrepareFight();
 				timer = 0;
 				Player.state = State::FIGHT;
 			}
@@ -396,7 +476,18 @@ public:
 			DisplayFight();
 
 			break;
+
+		case State::POST_FIGHT:
+
+			Player.state = State::POST_FIGHT;
+			DisplayVictory();
+			
+		break;
 		}
+
+		IPressed = false;
+		EnterPressed = false;
+
 		return true;
 	}
 
@@ -416,9 +507,16 @@ private:
 	std::unique_ptr<olc::Sprite> NULLw;
 	std::unique_ptr<olc::Sprite> alisaFight;
 	std::unique_ptr<olc::Sprite> floppa;
+	std::unique_ptr<olc::Sprite> bingus;
+	std::unique_ptr<olc::Sprite> sogga;
 	std::unique_ptr<olc::Sprite> attackIcon;
 	std::unique_ptr<olc::Sprite> blockIcon;
 	std::unique_ptr<olc::Sprite> dodgeIcon;
+	std::unique_ptr<olc::Sprite> healIcon;
+	std::unique_ptr<olc::Sprite> biteIcon;
+	std::unique_ptr<olc::Sprite> clawIcon;
+	std::unique_ptr<olc::Sprite> fleeIcon;
+
 
 	float fTargetFrameTime;			//Предсказуемое время кадров
 	float fAccumulatedTime;			//Время с момента запуска
@@ -429,6 +527,7 @@ private:
 	Map World[256][256];		//Матрица для записи мира в файл
 	Actor Player;
 	Actor Menu;
+	Rival Enemy;
 	
 	unsigned TileX;			//Размеры одного тайла, размещенного на дисплее
 	unsigned TileY;
@@ -446,6 +545,8 @@ private:
 	bool UpPressed;
 	bool DownPressed;
 	bool EnterPressed;
+	bool EscPressed;
+	bool IPressed;
 
 
 	bool InCredits;			//Контрольная переменная для показа титров в главном меню
@@ -466,57 +567,215 @@ private:
 		}
 	}
 
-	void DisplayFight()
+	void DisplayMenu()
+	{
+		FillRect(50, 100 , 150, 250, olc::BLACK);
+
+		if(EscPressed == true)
+		{
+			Player.state = State::OVERWORLD;
+			EscPressed = false;
+		}
+	}
+
+	void DisplayVictory()
+	{
+		DrawString(MidleX - 50, MidleY - 20, "Victory", olc::WHITE, 2);
+		DrawString(MidleX - 50, MidleY + 10, "Press Enter to continue", olc::YELLOW, 2);
+		if(EnterPressed == true)
+		{
+			Player.state = State::OVERWORLD;
+			EnterPressed = false;
+		}
+	}
+
+	void DisplayFightHud(std::string first, std::string second, std::string third)		//Возвращает спрайты
+	{
+		switch(int(Menu.y))
+				{
+					case 1:
+						DrawString(40, 360, first, olc::YELLOW, 2);
+						DrawString(32, 380, second, olc::WHITE, 2);
+						DrawString(32, 400, third, olc::WHITE, 2);
+						break;
+					case 2:
+						DrawString(32, 360, first, olc::WHITE, 2);
+						DrawString(40, 380, second, olc::YELLOW, 2);
+						DrawString(32, 400, third, olc::WHITE, 2);
+						break;
+					case 3:
+						DrawString(32, 360, first, olc::WHITE, 2);
+						DrawString(32, 380, second, olc::WHITE, 2);
+						DrawString(40, 400, third, olc::YELLOW, 2);
+						break;
+				}
+	}
+
+	void PrepareFight()		//Рандомный enemy
 	{
 		
-		DisplayPlayer();
+		Enemy.CurrentEnemy = rand() % 3 + 0;
+		Menu.state = Battle::MAIN;
+		Menu.y = 2.0f;
+		std::cout << "Current enemy: ";
+		Enemy.lvl = rand() % 4 + 1;
+		switch(Enemy.CurrentEnemy)
+		{
+			case Enemy::FLOPPA:
+				std::cout<<"Floppa"<<std::endl;
+				Enemy.def = Enemy.lvl * 4;
+				Enemy.hp = Enemy.lvl * 10 + (rand() % 10 + 0);
+				Enemy.dmg = Enemy.lvl * 3 + (rand() % 6 + 0);
+				Enemy.maxhp = Enemy.hp;
+			break;
+
+			case Enemy::BINGUS:
+				std::cout<<"Bingus"<<std::endl;
+				Enemy.def = 0;
+				Enemy.hp = Enemy.lvl * 3 + (rand() % 10 + 0);
+				Enemy.dmg = Enemy.lvl * 6 + (rand() % 10 + 0);
+				Enemy.maxhp = Enemy.hp;
+			break;
+
+			case Enemy::SOGGA:
+				std::cout<<"Sogga"<<std::endl;
+				Enemy.def = int(Enemy.lvl * 1.5f) - 1;
+				Enemy.hp = Enemy.lvl * 10 + (rand() % 10 + 0);
+				Enemy.dmg = (Enemy.lvl * 6)/2 + (rand() % 2 + 0);
+				Enemy.maxhp = Enemy.hp;
+			break;
+		}
+		std::cout << "level : "<<Enemy.lvl<<std::endl;
+		std::cout << "health point : "<<Enemy.hp<<std::endl;
+		std::cout << "defense : "<<Enemy.def<<std::endl;
+		std::cout << "damage : "<<Enemy.dmg<<std::endl;
+		
+	}
+
+	void DisplayFight()		//Название говорит само за себя
+	{
+    	DisplayPlayer();
 		DisplayEnemy();
 
-		DrawRect(2, 350, 477, 435, olc::WHITE);
-		DrawRect(3, 351, 476, 435, olc::WHITE);
+		DrawRect(2, 350, 477, 100, olc::WHITE);		//UI
+		DrawRect(3, 351, 476, 100, olc::WHITE);
+		FillRect(355, 361, Player.CurrentHP, 19 , olc::RED);	//Player stats
+		FillRect(35, 361, Player.lvl, 19 , olc::BLUE);
+		DrawRect(355, 360, 100, 20, olc::WHITE);
+		DrawRect(355, 390, 100, 20, olc::WHITE);
 		
+		DrawRect(250, 36, Enemy.maxhp, 20, olc::WHITE);		//Enemy stats
+		DrawRect(355, 390, 100, 20, olc::WHITE);		//tf is that
+		FillRect(251, 37, Enemy.hp, 20, olc::RED);
+		DrawString(250, 40, "lvl " + std::to_string(Enemy.lvl), olc::YELLOW, 1);		//НЕ РОБИТ - Изменить 
+
+		DrawString(280, 370, std::to_string(Player.CurrentHP) + "/" + std::to_string(Player.maxHP) + "HP", olc::WHITE, 1);
+		DrawString(300, 400, "lvl " + std::to_string(Player.lvl), olc::WHITE, 1);
 		
 		switch (Menu.state)
 		{
 			case Battle::MAIN:
-				switch(int(Menu.y))
-				{
-					case 1:
-						DrawString(40, 360, "ATTACK", olc::YELLOW, 2);
-						DrawString(32, 380, "HEAL", olc::WHITE, 2);
-						DrawString(32, 400, "FLEE", olc::WHITE, 2);
-						DrawSprite(12, 360, GetIcon(Icon::ATTACKICON), 2);
-						break;
-					case 2:
-						DrawString(32, 360, "ATTACK", olc::WHITE, 2);
-						DrawString(40, 380, "HEAL", olc::YELLOW, 2);
-						DrawString(32, 400, "FLEE", olc::WHITE, 2);
-						break;
-					case 3:
-						DrawString(32, 360, "ATTACK", olc::WHITE, 2);
-						DrawString(32, 380, "HEAL", olc::WHITE, 2);
-						DrawString(40, 400, "FLEE", olc::YELLOW, 2);
-						break;
-				}
-				if(KeyPressed == true)		//Выбор меню
-				{
-					if((UpPressed == true) && ((Menu.y - 1.0f) > 0.0f))
+				DisplayFightHud("ATTACK", "HEAL", "FLEE");
+				DrawSprite(12, 360, GetIcon(Icon::ATTACKICON), 1);
+				DrawSprite(12, 380, GetIcon(Icon::HEALICON), 1);
+				DrawSprite(12, 400, GetIcon(Icon::FLEEICON), 1);
+				
+			break;
+			case Battle::ATTACK:
+				DisplayFightHud("SLASH", "BITE", "CLAW");
+				DrawSprite(12, 360, GetIcon(Icon::ATTACKICON), 1);
+				DrawSprite(12, 380, GetIcon(Icon::BITEICON), 1);
+				DrawSprite(12, 400, GetIcon(Icon::CLAWICON), 1);
+			break;
+			case Battle::HEAL:
+				DisplayFightHud("Small Potion", "Medium Potion", "Huge Potion");
+				DrawSprite(12, 360, GetIcon(Icon::HEALICON), 1);
+			
+		}
+
+		if(KeyPressed == true)		//Выбор меню
+		{
+			if((UpPressed == true) && ((Menu.y - 1.0f) > 0.0f))
+			{
+				Menu.y -= 1.0f;
+				UpPressed = false;
+			}
+			if((DownPressed == true) && ((Menu.y + 1.0f) < 4.0f))
+		    {
+				Menu.y += 1.0f;
+				DownPressed = false;
+			}
+			KeyPressed = false;
+		}
+
+		if(EnterPressed == true)
+		{
+			switch(Menu.state)
+			{
+				case Battle::MAIN:
+					Menu.state = int(Menu.y);	
+					if(Menu.state == Battle::FLEE)
 					{
-						Menu.y -= 1.0f;
-						UpPressed = false;
-					}
-					if((DownPressed == true) && ((Menu.y + 1.0f) < 4.0f))
+						Menu.state = Battle::MAIN;
+						Player.state = State::OVERWORLD;
+					}		
+				break;	
+					
+				case Battle::ATTACK:
+					Menu.state = Battle::MAIN;
+					switch(int(Menu.y))
 					{
-						Menu.y += 1.0f;
-						DownPressed = false;
+						case 1: // Slash
+							Enemy.hp -= (Player.dmg / 2) - (Enemy.def / 2);
+							Player.CurrentHP -= Enemy.dmg;
+						break;
+
+						case 2: // Bite
+							if(Enemy.def > 0)
+							{
+								Enemy.hp -= Player.dmg * 2;
+								Player.CurrentHP -= Enemy.dmg;
+							}
+							else
+							{
+								Player.CurrentHP -= Enemy.dmg;
+							}
+						break;
+
+						case 3: // Claw
+							Enemy.hp -=Player.dmg - Enemy.def;
+							Player.CurrentHP -= Enemy.dmg;
+						break;
 					}
-					if(EnterPressed == true)
+					Menu.state = Battle::MAIN;
+					if(Enemy.hp < 0)
 					{
-						Menu.state = int(Menu.y);
-						EnterPressed = false;
+						Player.state = State::POST_FIGHT;
 					}
-					KeyPressed = false;
-				}
+				break;
+				case Battle::HEAL:
+					Menu.state = Battle::MAIN;
+				break;
+			}
+			EnterPressed = false;
+		}	
+	}
+
+	olc::Sprite* GetEnemy(unsigned SpriteID)		//Enemy sprite
+	{
+		switch(SpriteID)
+		{
+			case Enemy::FLOPPA:
+				return floppa.get();
+			break;
+			case Enemy::BINGUS:
+				return bingus.get();
+			break;
+			case Enemy::SOGGA:
+				return sogga.get();
+			break;
+			default:
+				return NULLw.get();
 			break;
 		}
 	}
@@ -527,6 +786,18 @@ private:
 		{
 			case Icon::ATTACKICON:
 				return attackIcon.get();
+				break;
+			case Icon::HEALICON:
+				return healIcon.get();
+				break;
+			case Icon::FLEEICON:
+				return fleeIcon.get();
+				break;
+			case Icon::BITEICON:
+				return biteIcon.get();
+				break;
+			case Icon::CLAWICON:
+				return clawIcon.get();
 				break;
 			case Icon::BLOCKICON:
 				return blockIcon.get();
@@ -632,36 +903,32 @@ private:
 			}
 			KeyPressed = false;
 
-			if( World[int(Player.x)][int(Player.y)].block == Tile::GRASS)
+			if(World[int(Player.x)][int(Player.y)].block == Tile::GRASS && (BuildMod == false))
 			{
-				unsigned random = rand() % 999 + 1;
-				std::cout << random << std::endl;
+				unsigned random = rand() % 900 + 1;
 				if(random <= 1)
 				{
 					Player.state = State::PRE_FIGHT;
 				}	
 			}
 		}
-		
-		
 	}
 
 	void DisplayPlayer()		//Отображение спрайта игрока
 	{
-		
-		if(Player.state == State::OVERWORLD)
-		{
-			DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
-		}
-		else if(Player.state == State::FIGHT)
+		if(Player.state == State::FIGHT)
 		{
 			DrawSprite(MidleX - (2 * TileX), MidleY - (TileY / 48), alisaFight.get(), TileX / 18);
+		}
+		else
+		{
+			DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
 		}
 	}
 	
 	void DisplayEnemy()
 	{
-		DrawSprite(MidleX + TileX, MidleY - (TileY * 2), floppa.get(), TileX/32);
+		DrawSprite(MidleX + TileX, MidleY - (TileY * 2), GetEnemy(Enemy.CurrentEnemy), TileX/32);
 	}
 
 	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования/Показывает координаты игрока
@@ -670,7 +937,7 @@ private:
 		FillRect(0, 0, 480, 40, olc::BLACK);
 		DrawString(5,20, "Plr.X = " + std::to_string(int(Player.x)), olc::WHITE, 1.0f);
 		DrawString(5,30, "Plr.Y = " + std::to_string(int(Player.y)), olc::WHITE, 1.0f);
-		FillRect(416,17, 440, 57 , olc::DARK_GREEN);
+		FillRect(416,17, 56, 56 , olc::DARK_GREEN);
 		DrawSprite(420, 20, GetSprite(CurrentBlock), 0.5f, 0);
 		
 	}
