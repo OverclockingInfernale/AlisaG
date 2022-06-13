@@ -7,7 +7,7 @@ struct Actor// упрощения хранения координат игрок
 	float x;
 	float y;
 	unsigned state; // отвечает за текущее состояние игрока (enum Player) или (enum Battle)
-	unsigned CurrentHP;
+	int CurrentHP;
 	unsigned maxHP;
 	unsigned dmg;
 	unsigned block;
@@ -82,6 +82,7 @@ public:
 		PRE_FIGHT = 4,
 		FIGHT = 5,
 		POST_FIGHT = 6,
+		DIED = 7,
 	};
 
 	Game() // конструктор класса
@@ -164,7 +165,7 @@ public:
 		}
 		fTargetFrameTime = 1.0f / 60.0f;
 		fAccumulatedTime = 0.0f;
-		sAppName = "Example";
+		//sAppName = "Example";
 		Player.state = 0;
 
 		
@@ -250,7 +251,7 @@ public:
 
 	bool OnUserUpdate(float fElapsedTime) override // вызов каждый божий кадр
 	{
-		//std::cout << "AccumulatedTime = "<< fAccumulatedTime<<std::endl;
+		//std::cout << "AccumulatedTime = "<< fAccumulatedTime<<std::endl;		//Попытка ввести время в игру
 		//std::cout << "ElapsedTime = " << fElapsedTime<<std::endl;
 	
 
@@ -389,6 +390,8 @@ public:
 
 		case State::OVERWORLD: //режим открытого мира
 
+			Player.CurrentHP = Player.maxHP;
+
 			Clear(olc::DARK_BLUE); // очистка экран на сплошной цвет
 
 			if(IPressed == true)
@@ -448,7 +451,7 @@ public:
 
 		break;
 
-		case State::OVERWORLD_MENU:
+		case State::OVERWORLD_MENU:		//Пауза
 			DisplayWorld();
 			DisplayPlayer();
 			DisplayMenu();
@@ -477,12 +480,14 @@ public:
 
 			break;
 
-		case State::POST_FIGHT:
+		case State::POST_FIGHT:		//Победный экран либо умер
 
 			Player.state = State::POST_FIGHT;
 			DisplayVictory();
 			
 		break;
+		case State::DIED:
+			DisplayDEATH();
 		}
 
 		IPressed = false;
@@ -522,7 +527,7 @@ private:
 	float fAccumulatedTime;			//Время с момента запуска
 	float timer;					//Принимает значение ElapsedTime в момент вызова
 
-	short KeyFrame;
+	short KeyFrame;		//Делает ничего
 
 	Map World[256][256];		//Матрица для записи мира в файл
 	Actor Player;
@@ -567,7 +572,7 @@ private:
 		}
 	}
 
-	void DisplayMenu()
+	void DisplayMenu()	//Пауза в State::OVERWORLD
 	{
 		FillRect(50, 100 , 150, 250, olc::BLACK);
 
@@ -578,10 +583,26 @@ private:
 		}
 	}
 
-	void DisplayVictory()
+	void DisplayDEATH()
+	{
+		DrawString(MidleX - 50, MidleY - 30, "YOU DIED", olc::RED, 2);
+		DrawString(MidleX - 50, MidleY, "ENTER to continue", olc::YELLOW, 1);
+		DrawString(MidleX - 50, MidleY + 30, "ESC to exit", olc::YELLOW, 2);
+			if(EnterPressed == true)
+			{
+				Player.state = State::STARTED;
+				EnterPressed = true;
+			}
+			if(EscPressed == true)
+			{
+				exit(0);
+			}
+	}
+
+	void DisplayVictory()		//Вызов в Player.state = State::POSTFIGHT
 	{
 		DrawString(MidleX - 50, MidleY - 20, "Victory", olc::WHITE, 2);
-		DrawString(MidleX - 50, MidleY + 10, "Press Enter to continue", olc::YELLOW, 2);
+		DrawString(MidleX - 100, MidleY + 10, "Press Enter to continue", olc::YELLOW, 1);
 		if(EnterPressed == true)
 		{
 			Player.state = State::OVERWORLD;
@@ -589,7 +610,7 @@ private:
 		}
 	}
 
-	void DisplayFightHud(std::string first, std::string second, std::string third)		//Возвращает спрайты
+	void DisplayFightHud(std::string first, std::string second, std::string third)		//Подсвечивает выбранное действие
 	{
 		switch(int(Menu.y))
 				{
@@ -611,7 +632,7 @@ private:
 				}
 	}
 
-	void PrepareFight()		//Рандомный enemy
+	void PrepareFight()		//Рандомный enemy и выставление около рандомных статов
 	{
 		
 		Enemy.CurrentEnemy = rand() % 3 + 0;
@@ -623,7 +644,7 @@ private:
 		{
 			case Enemy::FLOPPA:
 				std::cout<<"Floppa"<<std::endl;
-				Enemy.def = Enemy.lvl * 4;
+				Enemy.def = Enemy.lvl * 3;
 				Enemy.hp = Enemy.lvl * 10 + (rand() % 10 + 0);
 				Enemy.dmg = Enemy.lvl * 3 + (rand() % 6 + 0);
 				Enemy.maxhp = Enemy.hp;
@@ -665,11 +686,11 @@ private:
 		DrawRect(355, 390, 100, 20, olc::WHITE);
 		
 		DrawRect(250, 36, Enemy.maxhp, 20, olc::WHITE);		//Enemy stats
-		DrawRect(355, 390, 100, 20, olc::WHITE);		//tf is that
-		FillRect(251, 37, Enemy.hp, 20, olc::RED);
-		DrawString(250, 40, "lvl " + std::to_string(Enemy.lvl), olc::YELLOW, 1);		//НЕ РОБИТ - Изменить 
+		DrawRect(355, 390, 100, 20, olc::WHITE);		
+		FillRect(251, 37, Enemy.hp, 19, olc::RED);
+		DrawString(250, 40, "lvl " + std::to_string(Enemy.lvl), olc::YELLOW, 1);		
 
-		DrawString(280, 370, std::to_string(Player.CurrentHP) + "/" + std::to_string(Player.maxHP) + "HP", olc::WHITE, 1);
+		DrawString(280, 370, std::to_string(Player.CurrentHP) + "/" + std::to_string(Player.maxHP) + "HP", olc::WHITE, 1);	//More Player stats
 		DrawString(300, 400, "lvl " + std::to_string(Player.lvl), olc::WHITE, 1);
 		
 		switch (Menu.state)
@@ -708,7 +729,7 @@ private:
 			KeyPressed = false;
 		}
 
-		if(EnterPressed == true)
+		if(EnterPressed == true)		//Действия и подменю, нанесение урона и т.д. и т.п.
 		{
 			switch(Menu.state)
 			{
@@ -731,9 +752,9 @@ private:
 						break;
 
 						case 2: // Bite
-							if(Enemy.def > 0)
+							if(Enemy.def == 0)
 							{
-								Enemy.hp -= Player.dmg * 2;
+								Enemy.hp -= Player.dmg;
 								Player.CurrentHP -= Enemy.dmg;
 							}
 							else
@@ -752,9 +773,49 @@ private:
 					{
 						Player.state = State::POST_FIGHT;
 					}
+					if(Player.CurrentHP <= 0)
+					{
+						Player.state = State::DIED;
+					}
 				break;
 				case Battle::HEAL:
 					Menu.state = Battle::MAIN;
+					switch(int(Menu.y))
+					{
+						case 1:	//Small Potion
+							if(Player.CurrentHP + 10 < Player.maxHP)
+							{
+								Player.CurrentHP += 10;
+							} else 
+							{
+								Menu.state = Battle::MAIN;
+							}
+							
+							break;
+						case 2:		//Medium Potion
+							if(Player.CurrentHP + 25 < Player.maxHP)
+							{
+							Player.CurrentHP += 25;
+							} else 
+							{
+								Menu.state = Battle::MAIN;
+							}
+							break;
+						case 3:		//Huge Potion
+							if(Player.CurrentHP + 50 < Player.maxHP)
+							{
+							Player.CurrentHP += 50;
+							} else 
+							{
+								Menu.state = Battle::MAIN;
+							}
+							break;
+							
+					}
+						if(Player.CurrentHP > Player.maxHP)
+						{
+							Player.state = State::DIED;
+						}
 				break;
 			}
 			EnterPressed = false;
@@ -780,7 +841,7 @@ private:
 		}
 	}
 
-	olc::Sprite* GetIcon(unsigned SpriteID)
+	olc::Sprite* GetIcon(unsigned SpriteID)		//Возвращает (нет блин отбирает) спрайты иконок в битве
 	{
 		switch(SpriteID)
 		{
@@ -817,7 +878,7 @@ private:
 
 		if(InCredits == true)
 		{
-			DrawString(10, MidleY - 20, "Game Developed by Vladimir_Maks, Overclocking_Infernale", olc::WHITE, 1);
+			DrawString(10, MidleY - 20, "Developed by Overclocking_Infernale with help of Vladimir_Maks", olc::WHITE, 1);
 			DrawString(10, MidleY, "PixelGameEngine by OneLineCoder", olc::WHITE, 1);
 			DrawString(25, MidleY - 60, "Press Enter to return", olc::YELLOW, 1);
 			if(EnterPressed == true)
@@ -926,7 +987,7 @@ private:
 		}
 	}
 	
-	void DisplayEnemy()
+	void DisplayEnemy()		//Дисплеит энеми
 	{
 		DrawSprite(MidleX + TileX, MidleY - (TileY * 2), GetEnemy(Enemy.CurrentEnemy), TileX/32);
 	}
@@ -976,7 +1037,7 @@ private:
 			case Tile::TREE:
 				return treew.get();
 				break;
-			case Tile::NULLW: // Нуллв это спрайт никакого объекта тоесть ну ничего
+			case Tile::NULLW: // Спрайт отсутствующего блока
 				return NULLw.get();
 			default:
 				return waterw.get();
@@ -984,7 +1045,7 @@ private:
 	}
 	
 
-	bool CollisionDetection(unsigned block)			//Проверка на коллизии/отключение коллизий в режиме редактирования
+	bool CollisionDetection(unsigned block)		//Проверка на коллизии/отключение коллизий в режиме редактирования
 	{
 		if (BuildMod == true)
 		{
@@ -1005,7 +1066,7 @@ private:
 		}
 	}
 
-	std::string GetSign()			//Возвращает текст таблички из файла
+	std::string GetSign()			//Возвращает текст таблички из файла(?)
 	{
 		std::string note = "Hello, im a sign!";
 		if ((int(Player.x) == 128) && (int(Player.y) == 126))
@@ -1036,7 +1097,7 @@ int main()
 {
 	srand(time(0));
 	Game go;
-	if (go.Construct(480, 480, 2, 2))		//Задает размеры видимой области игрового мира, а так же включает vsync
+	if (go.Construct(480, 480, 2, 2))		//Задает размеры видимой области игрового мира, а так же включает(?) vsync
 	{
 		go.Start();
 	}
