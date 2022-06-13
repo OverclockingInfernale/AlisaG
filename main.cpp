@@ -2,12 +2,12 @@
 #include "olcPixelGameEngine.h"
 #include <io.h>
 
-struct Actor// упрощения хранения координат игрока
+struct Actor	//Player
 {
-	float x;
+	float x;	//Player's coordinates
 	float y;
-	unsigned state; // отвечает за текущее состояние игрока (enum Player) или (enum Battle)
-	int CurrentHP;
+	unsigned state; //State of the game
+	int CurrentHP;	//Player stats
 	unsigned maxHP;
 	unsigned dmg;
 	unsigned block;
@@ -18,16 +18,16 @@ struct Rival	//Enemy stats
 {
 	unsigned CurrentEnemy;
 	int hp;
-	int maxhp;
+	unsigned maxhp;
 	unsigned dmg;
 	unsigned def;
 	unsigned lvl;
 };
 
-struct Map
+struct Map	
 {
-	unsigned block;	// ячейка хранения блоков
-	unsigned obj;	// ячейка хранения объектов
+	unsigned block;	// block storage cell
+	unsigned obj;	// object storage cell
 };
 
 class Game : public olc::PixelGameEngine
@@ -41,7 +41,7 @@ public:
 		SOGGA = 2,
 	};
 
-	enum Tile // енам мира
+	enum Tile // Blocks
 	{
 		EMPTY = 0,
 		GRASS = 1,
@@ -54,7 +54,7 @@ public:
 		TREE = 8,
 	};
 
-	enum Battle
+	enum Battle		//main menu in battle and its submenus
 	{
 		MAIN = 0,
 		ATTACK = 1,
@@ -62,7 +62,7 @@ public:
 		FLEE = 3,
 	};
 
-	enum Icon
+	enum Icon		//Icons of actions in battle
 	{
 		ATTACKICON = 0,
 		HEALICON = 1,
@@ -73,7 +73,7 @@ public:
 		DODGEICON = 6,
 	};
 
-	enum State // енам состояния игры2
+	enum State // State of the game
 	{
 		NOT_STARTED = 0,
 		STARTED = 1,
@@ -85,7 +85,7 @@ public:
 		DIED = 7,
 	};
 
-	Game() // конструктор класса
+	Game() // Class constuctor
 	{
 		BlockTypes = 8;
 		CurrentBlock = 0;
@@ -108,7 +108,7 @@ public:
 		Player.maxHP = 100;
 		Player.CurrentHP = Player.maxHP;
 		Player.dmg = 12;
-		Player.lvl = 1;
+		Player.lvl = 6;
 
 		Menu.maxHP = 0;
 		Menu.CurrentHP = 0;
@@ -194,7 +194,7 @@ public:
 
 		FillRect(0, 0, ScreenWidth() + 20, ScreenHeight() + 20, olc::BLACK);	//
 
-		TileX = ScreenWidth() / 5;			//Переменные середины дисплея
+		TileX = ScreenWidth() / 5;			//Middle of a display
 		TileY = ScreenHeight() / 5;
 		MidleX = ScreenWidth() / 2;
 		MidleY = ScreenHeight() / 2;
@@ -203,15 +203,9 @@ public:
 
 		BuildMod = false;
 
-		std::cout << "Tile x = " << TileX << std::endl;	//Типо дебаг
-		std::cout << "Tile y = " << TileY << std::endl;
-		std::cout << "Midle X = " << MidleX << std::endl;
-		std::cout << "Midle Y = " << MidleY << std::endl;
-		std::cout << "Player.x = " << Player.x << std::endl;
-		std::cout << "Player.y = " << Player.y << std::endl;
-		std::cout << "Player pos = " << MidleX - (TileX / 4) << "   " << MidleY - (TileY / 4) << "   " << MidleX << "   " << MidleY << std::endl;
 		
-// указание пути размещения спрайтов
+		
+// Pointing path for the sprites
 		
 //Player
 		alisaw = std::make_unique<olc::Sprite>("./Sprites/player/playerc.png");	
@@ -587,7 +581,7 @@ private:
 	{
 		DrawString(MidleX - 50, MidleY - 30, "YOU DIED", olc::RED, 2);
 		DrawString(MidleX - 50, MidleY, "ENTER to continue", olc::YELLOW, 1);
-		DrawString(MidleX - 50, MidleY + 30, "ESC to exit", olc::YELLOW, 2);
+		DrawString(MidleX - 50, MidleY + 30, "ESC to exit", olc::YELLOW, 1);
 			if(EnterPressed == true)
 			{
 				Player.state = State::STARTED;
@@ -681,13 +675,15 @@ private:
 		DrawRect(2, 350, 477, 100, olc::WHITE);		//UI
 		DrawRect(3, 351, 476, 100, olc::WHITE);
 		FillRect(355, 361, Player.CurrentHP, 19 , olc::RED);	//Player stats
-		FillRect(35, 361, Player.lvl, 19 , olc::BLUE);
+		for (int i = 0; i < Player.lvl; i++)
+		{
+			FillRect(356 + (i*4) + i, 391, 4, 19, olc::BLUE);
+		}
 		DrawRect(355, 360, 100, 20, olc::WHITE);
 		DrawRect(355, 390, 100, 20, olc::WHITE);
 		
-		DrawRect(250, 36, Enemy.maxhp, 20, olc::WHITE);		//Enemy stats
-		DrawRect(355, 390, 100, 20, olc::WHITE);		
-		FillRect(251, 37, Enemy.hp, 19, olc::RED);
+		DrawRect(200, 36, (Enemy.maxhp * 3) + 2, 20, olc::WHITE);		//Enemy stats
+		FillRect(201, 37, (Enemy.hp * 3), 19, olc::RED);
 		DrawString(250, 40, "lvl " + std::to_string(Enemy.lvl), olc::YELLOW, 1);		
 
 		DrawString(280, 370, std::to_string(Player.CurrentHP) + "/" + std::to_string(Player.maxHP) + "HP", olc::WHITE, 1);	//More Player stats
@@ -747,7 +743,7 @@ private:
 					switch(int(Menu.y))
 					{
 						case 1: // Slash
-							Enemy.hp -= (Player.dmg / 2) - (Enemy.def / 2);
+							Enemy.hp -= ((Player.dmg * 3)/2) - (Enemy.def / 2);
 							Player.CurrentHP -= Enemy.dmg;
 						break;
 
@@ -920,21 +916,20 @@ private:
 				Menu.y += 1;
 				DownPressed = false;
 			}
-			if((EnterPressed == true) && ((Menu.y >= 0.5f) && (Menu.y < 1.5f)))
-			{
-				Player.state = 2;
-				EnterPressed = false;
-			}
-			if((EnterPressed == true) && ((Menu.y >= 1.5f) && (Menu.y < 2.5f)))
-			{
-				InCredits = true;
-				EnterPressed = false;
-			}
-			if((EnterPressed == true) && ((Menu.y >= 2.5f) && (Menu.y < 4.0f)))
-			{
-				exit(0);
-			}
-			
+		}
+		if((EnterPressed == true) && ((Menu.y >= 0.5f) && (Menu.y < 1.5f)))
+		{
+			Player.state = 2;
+			EnterPressed = false;
+		}
+		if((EnterPressed == true) && ((Menu.y >= 1.5f) && (Menu.y < 2.5f)))
+		{
+			InCredits = true;
+			EnterPressed = false;
+		}
+		if((EnterPressed == true) && ((Menu.y >= 2.5f) && (Menu.y < 4.0f)))
+		{
+			exit(0);
 		}
 	}
 
