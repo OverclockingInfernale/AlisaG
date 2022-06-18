@@ -196,10 +196,10 @@ public:
 
 		TileX = ScreenWidth() / 5;			//Middle of a display
 		TileY = ScreenHeight() / 5;
-		MidleX = ScreenWidth() / 2;
-		MidleY = ScreenHeight() / 2;
+		MiddleX = ScreenWidth() / 2;
+		MiddleY = ScreenHeight() / 2;
 
-		std::cout << "size of world = "<< sizeof(World) <<std::endl; 
+		std::cout << "size of world = "<< sizeof(World) <<std::endl;
 
 		BuildMod = false;
 
@@ -225,12 +225,12 @@ public:
 		NULLw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/NULLw.png");
 		
 //Enemies
-		floppa = std::make_unique<olc::Sprite>("./Sprites/Enemies/Floppa.png");		
+		floppa = std::make_unique<olc::Sprite>("./Sprites/Enemies/Floppa.png");
 		bingus = std::make_unique<olc::Sprite>("./Sprites/Enemies/Bingus.png");
 		sogga = std::make_unique<olc::Sprite>("./Sprites/Enemies/Sogga.png");
 
 //Icons
-		attackIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconAttack.png");		
+		attackIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconAttack.png");
 		blockIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconBlock.png");
 		dodgeIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconDodge.png");
 		healIcon = std::make_unique<olc::Sprite>("./Sprites/BattleIcons/IconHeal.png");
@@ -243,14 +243,9 @@ public:
 		return true;
 	}
 
-	bool OnUserUpdate(float fElapsedTime) override // вызов каждый божий кадр
+	bool OnUserUpdate(float fElapsedTime) override // Summons every frame
 	{
-		//std::cout << "AccumulatedTime = "<< fAccumulatedTime<<std::endl;		//Попытка ввести время в игру
-		//std::cout << "ElapsedTime = " << fElapsedTime<<std::endl;
-	
-
-
-		// ввод с клавы
+		// Keyboard controls
 
 		if(GetKey(olc::Key::UP).bPressed)
 		{
@@ -452,12 +447,12 @@ public:
 			
 		break;
 
-		case State::PRE_FIGHT:		// всплывающий круг перед битвой
+		case State::PRE_FIGHT:		// Circle transition
 
 			Clear(olc::DARK_BLUE);
 			DisplayWorld();
 			DisplayPlayer();
-			FillCircle(MidleX,MidleY, ((timer + sin(timer)) * 4) * 40, olc::BLACK);
+			FillCircle(MiddleX, MiddleY, ((timer + sin(timer)) * 4) * 40, olc::BLACK);
 			if (timer >= 2.0f)
 			{
 				PrepareFight();
@@ -467,7 +462,7 @@ public:
 			timer += fElapsedTime;
 			break;
 
-		case State::FIGHT:		// режим битвы (В РАЗРАБОТКЕ)
+		case State::FIGHT:	
 			
 			Clear(olc::BLACK);
 			DisplayFight();
@@ -530,8 +525,8 @@ private:
 	
 	unsigned TileX;			//Размеры одного тайла, размещенного на дисплее
 	unsigned TileY;
-	unsigned MidleX;		//Центр прорисовки мира
-	unsigned MidleY;
+	unsigned MiddleX;		//Центр прорисовки мира
+	unsigned MiddleY;
 
 	unsigned BlockTypes;		//Типы блоков (не спрайтов), доступные в режим редактирования
 	unsigned CurrentBlock;		//Текущий блок в режиме редактирования
@@ -579,9 +574,9 @@ private:
 
 	void DisplayDEATH()
 	{
-		DrawString(MidleX - 50, MidleY - 30, "YOU DIED", olc::RED, 2);
-		DrawString(MidleX - 50, MidleY, "ENTER to continue", olc::YELLOW, 1);
-		DrawString(MidleX - 50, MidleY + 30, "ESC to exit", olc::YELLOW, 1);
+		DrawString(MiddleX - 50, MiddleY - 30, "YOU DIED", olc::RED, 2);
+		DrawString(MiddleX - 50, MiddleY, "ENTER to continue", olc::YELLOW, 1);
+		DrawString(MiddleX - 50, MiddleY + 30, "ESC to exit", olc::YELLOW, 1);
 			if(EnterPressed == true)
 			{
 				Player.state = State::STARTED;
@@ -595,8 +590,8 @@ private:
 
 	void DisplayVictory()		//Вызов в Player.state = State::POSTFIGHT
 	{
-		DrawString(MidleX - 50, MidleY - 20, "Victory", olc::WHITE, 2);
-		DrawString(MidleX - 100, MidleY + 10, "Press Enter to continue", olc::YELLOW, 1);
+		DrawString(MiddleX - 50, MiddleY - 20, "Victory", olc::WHITE, 2);
+		DrawString(MiddleX - 100, MiddleY + 10, "Press Enter to continue", olc::YELLOW, 1);
 		if(EnterPressed == true)
 		{
 			Player.state = State::OVERWORLD;
@@ -667,7 +662,7 @@ private:
 		
 	}
 
-	void DisplayFight()		//Название говорит само за себя
+	void DisplayFight()		
 	{
     	DisplayPlayer();
 		DisplayEnemy();
@@ -874,9 +869,9 @@ private:
 
 		if(InCredits == true)
 		{
-			DrawString(10, MidleY - 20, "Developed by Overclocking_Infernale with help of Vladimir_Maks", olc::WHITE, 1);
-			DrawString(10, MidleY, "PixelGameEngine by OneLineCoder", olc::WHITE, 1);
-			DrawString(25, MidleY - 60, "Press Enter to return", olc::YELLOW, 1);
+			DrawString(10, MiddleY - 20, "Developed by Overclocking_Infernale with help of Vladimir_Maks", olc::WHITE, 1);
+			DrawString(10, MiddleY, "PixelGameEngine by OneLineCoder", olc::WHITE, 1);
+			DrawString(25, MiddleY - 60, "Press Enter to return", olc::YELLOW, 1);
 			if(EnterPressed == true)
 			{
 				InCredits = false;
@@ -885,23 +880,23 @@ private:
 		}
 		else
 		{
-			DrawString(MidleX - 110, MidleY - 80, "AlisaG", olc::GREY, 5);
-			DrawString(MidleX - 40, MidleY, "PLAY", olc::WHITE, 2);
-			DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::WHITE, 2);
-			DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::WHITE, 2);
-			DrawSprite(MidleX + 110, MidleY - 79, alisaw.get(), 1, 0);
+			DrawString(MiddleX - 110, MiddleY - 80, "AlisaG", olc::GREY, 5);
+			DrawString(MiddleX - 40, MiddleY, "PLAY", olc::WHITE, 2);
+			DrawString(MiddleX - 40, MiddleY + 40, "CREDITS", olc::WHITE, 2);
+			DrawString(MiddleX - 40, MiddleY + 80, "QUIT", olc::WHITE, 2);
+			DrawSprite(MiddleX + 110, MiddleY - 79, alisaw.get(), 1, 0);
 		
 			if (Menu.y >= 2.5f)
 			{
-				DrawString(MidleX - 40, MidleY + 80, "QUIT", olc::YELLOW, 2);
+				DrawString(MiddleX - 40, MiddleY + 80, "QUIT", olc::YELLOW, 2);
 			} 
 			else if (Menu.y >= 1.5f)
 			{
-				DrawString(MidleX - 40, MidleY + 40, "CREDITS", olc::YELLOW, 2);
+				DrawString(MiddleX - 40, MiddleY + 40, "CREDITS", olc::YELLOW, 2);
 			}
 			else if (Menu.y >= 0.5f)
 			{
-				DrawString(MidleX - 40, MidleY, "PLAY", olc::YELLOW, 2);
+				DrawString(MiddleX - 40, MiddleY, "PLAY", olc::YELLOW, 2);
 			}
 		}
 		if(KeyPressed == true)		//Выбор меню
@@ -974,17 +969,17 @@ private:
 	{
 		if(Player.state == State::FIGHT)
 		{
-			DrawSprite(MidleX - (2 * TileX), MidleY - (TileY / 48), alisaFight.get(), TileX / 18);
+			DrawSprite(MiddleX - (2 * TileX), MiddleY - (TileY / 48), alisaFight.get(), TileX / 18);
 		}
 		else
 		{
-			DrawSprite(MidleX - 16, MidleY - 16, alisaw.get(), (TileX / 16) / 2);
+			DrawSprite(MiddleX - 16, MiddleY - 16, alisaw.get(), (TileX / 16) / 2);
 		}
 	}
 	
 	void DisplayEnemy()		//Дисплеит энеми
 	{
-		DrawSprite(MidleX + TileX, MidleY - (TileY * 2), GetEnemy(Enemy.CurrentEnemy), TileX/32);
+		DrawSprite(MiddleX + TileX, MiddleY - (TileY * 2), GetEnemy(Enemy.CurrentEnemy), TileX/32);
 	}
 
 	void DrawBuildHud()			//Отображает спрайт выбранного блока в режиме редактирования/Показывает координаты игрока
@@ -1092,7 +1087,7 @@ int main()
 {
 	srand(time(0));
 	Game go;
-	if (go.Construct(480, 480, 2, 2))		//Задает размеры видимой области игрового мира, а так же включает(?) vsync
+	if (go.Construct(480, 480, 2, 2))		//Creates a window with certain size
 	{
 		go.Start();
 	}
