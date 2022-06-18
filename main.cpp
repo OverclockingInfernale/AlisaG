@@ -1,6 +1,8 @@
 ﻿#define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
 #include <io.h>
+#include <fstream>
+#include <filesystem>
 
 struct Actor	//Player
 {
@@ -26,8 +28,8 @@ struct Rival	//Enemy stats
 
 struct Map	
 {
-	unsigned block;	// block storage cell
-	unsigned obj;	// object storage cell
+	unsigned short block;	// block storage cell
+	unsigned short obj;	// object storage cell
 };
 
 class Game : public olc::PixelGameEngine
@@ -49,9 +51,13 @@ public:
 		BRIDGE = 3,
 		ROAD = 4,
 		BROKENROAD = 5,
-		SIGN = 6,
-		NULLW = 7,
-		TREE = 8,
+		TREE = 6,
+	};
+
+	enum Object
+	{
+		NULLW = 0,
+		SIGN = 1,
 	};
 
 	enum Battle		//main menu in battle and its submenus
@@ -87,7 +93,55 @@ public:
 
 	Game() // Class constuctor
 	{
-		BlockTypes = 8;
+
+		std::ifstream in("./configs/options.cfg");
+
+		if (in.is_open())
+		{
+			std::cout << "cfg file opened" << std::endl;
+
+			ConfigurationLoad = true;
+			std::string param;
+			unsigned int value;
+			while (!in.eof())
+			{
+				in >> param;
+				in >> value;
+
+				std::cout << "checking : " << param << " which is " << value << std::endl;
+
+				CheckParam(param, value);
+			}
+			in.close();
+			
+		}
+		else
+		{
+			BuildMod = false;
+			FPS = 60;
+			ConfigurationLoad = false;
+		}
+
+		TileTypes = 0;
+
+		std::filesystem::path p1{ "./Sprites/WorldSpr" };
+
+		for (auto& p : std::filesystem::directory_iterator(p1))
+		{
+			++TileTypes;
+		}
+
+		ObjTypes = 0;
+
+		std::filesystem::path p2{"./Sprites/ObjSpr"};
+
+		for (auto& p : std::filesystem::directory_iterator(p2))
+		{
+			++ObjTypes;
+		}
+		
+		BlockTypes = ObjTypes + TileTypes;
+
 		CurrentBlock = 0;
 
 		Enemy.CurrentEnemy = 0;
@@ -122,8 +176,8 @@ public:
 			{
 				for (int j = 0; j < 256; j++)
 				{
-					fread(&World[i][j].block, sizeof(unsigned), 1, file);
-					fread(&World[i][j].obj, sizeof(unsigned), 1, file);
+					fread(&World[i][j].block, sizeof(short), 1, file);
+					fread(&World[i][j].obj, sizeof(short), 1, file);
 				}
 			}
 			fclose(file);
@@ -136,7 +190,7 @@ public:
 				for (int j = 0; j < 256; j++)
 				{
 					World[i][j].block = Tile::WATER;
-					World[i][j].obj = Tile::NULLW;
+					World[i][j].obj = Object::NULLW;
 				}
 			}
 			for (int i = 16; i < 240; i++)		
@@ -163,12 +217,11 @@ public:
 				}
 			}
 		}
-		fTargetFrameTime = 1.0f / 60.0f;
 		fAccumulatedTime = 0.0f;
 		//sAppName = "Example";
 		Player.state = 0;
 
-		
+		BattleChance = 15 / (fTargetFrameTime);
 
 		LPressed = false;
 		RPressed = false;
@@ -200,11 +253,8 @@ public:
 		MiddleY = ScreenHeight() / 2;
 
 		std::cout << "size of world = "<< sizeof(World) <<std::endl;
-
-		BuildMod = false;
-
-		
-		
+		std::cout << "TileTypes = " << TileTypes << std::endl;
+		std::cout << "ObjTypes = " << ObjTypes << std::endl;
 // Pointing path for the sprites
 		
 //Player
@@ -268,11 +318,6 @@ public:
 			}
 		}
 
-		if(GetKey(olc::Key::I).bPressed)
-		{
-			IPressed = true;
-		}
-
 		if(GetKey(olc::Key::ESCAPE).bPressed)
 		{
 			EscPressed = true;
@@ -308,13 +353,13 @@ public:
 		{
 			FILE* file;
 			if (fopen_s(&file, "map.bin", "w") == 0)
-			{	
+			{
 				for (int i = 0; i < 256; i++)
 				{
 					for (int j = 0; j < 256; j++)
 					{
-						fwrite(&World[i][j].block, sizeof(unsigned), 1, file);
-						fwrite(&World[i][j].obj, sizeof(unsigned), 1, file);
+						fwrite(&World[i][j].block, sizeof(short), 1, file);
+						fwrite(&World[i][j].obj, sizeof(short), 1, file);
 					}
 				}
 				fclose(file);
@@ -325,6 +370,10 @@ public:
 				std::cout << "MAP FILE WRITE ERROR" << std::endl;
 				return false;
 			}
+		}
+		else if (GetKey(olc::Key::I).bPressed)
+		{
+			IPressed = true;
 		}
 
 		// Редактирование мира
@@ -338,6 +387,7 @@ public:
 			{
 				CurrentBlock--;
 			}
+			std::cout << "cuurent block id = " << CurrentBlock << std::endl;
 		}
 		if (GetKey(olc::Key::R).bPressed && (BuildMod == true))
 		{
@@ -349,6 +399,7 @@ public:
 			{
 				CurrentBlock++;
 			}
+			std::cout << "cuurent block id = " << CurrentBlock << std::endl;
 		}
 
 		fAccumulatedTime += fElapsedTime;
@@ -383,7 +434,8 @@ public:
 
 			Clear(olc::DARK_BLUE); // очистка экран на сплошной цвет
 
-			if(IPressed == true)
+			
+			if (IPressed == true)
 			{
 				if (BuildMod == false)
 				{
@@ -397,22 +449,23 @@ public:
 				}
 				IPressed = false;
 			}
+			
 
 			if((EnterPressed == true) && (BuildMod == true))
 			{
-				if(IsBlock(CurrentBlock) == true)
+				if(CurrentBlock < TileTypes)
 				{
 					World[int(Player.x)][int(Player.y)].block = CurrentBlock;
 				}
 				else
 				{	
-					if (CurrentBlock == Tile::NULLW)
+					if (CurrentBlock - TileTypes == Object::NULLW)
 					{
 						World[int(Player.x)][int(Player.y)].obj = NULL;
 					}
 					else
 					{
-						World[int(Player.x)][int(Player.y)].obj = CurrentBlock;
+						World[int(Player.x)][int(Player.y)].obj = CurrentBlock - TileTypes;
 					}
 				}
 				EnterPressed = false;
@@ -433,7 +486,7 @@ public:
 			{
 				DrawBuildHud();
 			}
-			if((World[int(Player.x)][int(Player.y)].obj == 6))
+			if((World[int(Player.x)][int(Player.y)].obj == Object::SIGN))
 			{
 				DisplaySign();
 			}
@@ -523,12 +576,19 @@ private:
 	Actor Menu;
 	Rival Enemy;
 	
-	unsigned TileX;			//Размеры одного тайла, размещенного на дисплее
+	unsigned TileX;			//Размеры одного тайла в пикселях ( размер окна / 5 ), размещенного на дисплее
 	unsigned TileY;
 	unsigned MiddleX;		//Центр прорисовки мира
 	unsigned MiddleY;
 
+	unsigned BattleChance;
+
+	
+	unsigned TileTypes; // кол во типов тайлов
+	unsigned ObjTypes; // кол во типов сущностей
+
 	unsigned BlockTypes;		//Типы блоков (не спрайтов), доступные в режим редактирования
+
 	unsigned CurrentBlock;		//Текущий блок в режиме редактирования
 
 	bool KeyPressed;		//Нажатие любой клавиши
@@ -542,6 +602,9 @@ private:
 	bool EscPressed;
 	bool IPressed;
 
+	bool ConfigurationLoad;
+
+	unsigned FPS;
 
 	bool InCredits;			//Контрольная переменная для показа титров в главном меню
 	//void functions
@@ -555,7 +618,7 @@ private:
 				DrawSprite((j - (int(Player.x) - 2)) * TileX, (i - (int(Player.y) - 2)) * TileY, GetSprite(World[j][i].block), ((TileX / 48) * 1.0f), 0);
 				if(World[j][i].obj != NULL)
 				{
-					DrawSprite((j - (int(Player.x) - 2)) * TileX, (i - (int(Player.y) - 2)) * TileY, GetSprite(World[j][i].obj), ((TileX / 48) * 1.0f), 0);
+					DrawSprite((j - (int(Player.x) - 2)) * TileX, (i - (int(Player.y) - 2)) * TileY, GetObj(World[j][i].obj), ((TileX / 48) * 1.0f), 0);
 				}
 			}
 		}
@@ -956,7 +1019,8 @@ private:
 
 			if(World[int(Player.x)][int(Player.y)].block == Tile::GRASS && (BuildMod == false))
 			{
-				unsigned random = rand() % 900 + 1;
+				unsigned random = rand() % BattleChance + 1;
+				std::cout << random << std::endl;
 				if(random <= 1)
 				{
 					Player.state = State::PRE_FIGHT;
@@ -988,8 +1052,18 @@ private:
 		FillRect(0, 0, 480, 40, olc::BLACK);
 		DrawString(5,20, "Plr.X = " + std::to_string(int(Player.x)), olc::WHITE, 1.0f);
 		DrawString(5,30, "Plr.Y = " + std::to_string(int(Player.y)), olc::WHITE, 1.0f);
+		DrawString(100, 20, "CurBlock = " + std::to_string(int(World[int(Player.x)][int(Player.y)].block)), olc::WHITE, 1.0f);
+		DrawString(100, 30, "CurObj = " + std::to_string(int(World[int(Player.x)][int(Player.y)].obj)), olc::WHITE, 1.0f);
 		FillRect(416,17, 56, 56 , olc::DARK_GREEN);
-		DrawSprite(420, 20, GetSprite(CurrentBlock), 0.5f, 0);
+		
+		if (CurrentBlock < TileTypes)
+		{
+			DrawSprite(420, 20, GetSprite(CurrentBlock), 0.5f, 0);
+		}
+		else
+		{
+			DrawSprite(420, 20, GetObj(CurrentBlock - TileTypes), 0.5f, 0);
+		}
 		
 	}
 
@@ -1021,19 +1095,27 @@ private:
 			case Tile::BROKENROAD:
 				return BrokenRoad.get();
 				break;
-			case Tile::SIGN:
-				return signw.get();
-				break;
 			case Tile::TREE:
 				return treew.get();
 				break;
-			case Tile::NULLW: // Спрайт отсутствующего блока
-				return NULLw.get();
 			default:
 				return waterw.get();
 		}
 	}
-	
+
+	olc::Sprite* GetObj(unsigned SpriteID)		//Возвращает спрайт при прорисовке мира
+	{
+		switch (SpriteID)
+		{
+		case Object::SIGN:
+			return signw.get();
+			break;
+		default:
+			return NULLw.get();
+			break;
+		}
+	}
+
 
 	bool CollisionDetection(unsigned block)		//Проверка на коллизии/отключение коллизий в режиме редактирования
 	{
@@ -1071,13 +1153,35 @@ private:
 	{
 		switch(block)
 		{
-			case Tile::SIGN:
-			case Tile::NULLW:
+			case Object::NULLW:
+			case Object::SIGN:
 				return false;
 			break;
 			default:
 				return true;
 			break;
+		}
+	}
+
+	void CheckParam(std::string param, unsigned int value)
+	{
+		if (param == "fps")
+		{
+			if ((value > 0) && (value < 1000))
+			{
+				fTargetFrameTime = 1.0f / float(value);
+			}
+			else
+			{
+				fTargetFrameTime = 1.0f / 60.0f;
+			}
+		}
+		else if (param == "debug_mode")
+		{
+			if ((value >= 0) && (value <= 1))
+			{
+				BuildMod = value;
+			}
 		}
 	}
 	
