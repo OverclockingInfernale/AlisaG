@@ -1,8 +1,11 @@
 ﻿#define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
-#include <io.h>
 #include <fstream>
 #include <filesystem>
+
+#define WORLD_MAP_PATH "./WorldMaps/map.agm"
+#define SPRITES_WORLD_PATH "./Sprites/WorldSpr"
+#define SPRITES_OBJ_PATH "./Sprites/ObjSpr"
 
 struct Actor	//Player
 {
@@ -89,10 +92,14 @@ public:
 		FIGHT = 5,
 		POST_FIGHT = 6,
 		DIED = 7,
+		WORLD_LOADING = 8,
 	};
 
 	Game() // Class constuctor
 	{
+		filemap.open(WORLD_MAP_PATH, std::ios::binary | std::ios::out);
+
+		DebugMode = false;
 
 		std::ifstream in("./configs/options.cfg");
 
@@ -113,7 +120,6 @@ public:
 				CheckParam(param, value);
 			}
 			in.close();
-			
 		}
 		else
 		{
@@ -124,23 +130,23 @@ public:
 
 		TileTypes = 0;
 
-		std::filesystem::path p1{ "./Sprites/WorldSpr" };
+		std::filesystem::path p1{ SPRITES_WORLD_PATH };
 
 		for (auto& p : std::filesystem::directory_iterator(p1))
 		{
 			++TileTypes;
 		}
-
+		++TileTypes; // because we have Tile::EMPTY
 		ObjTypes = 0;
 
-		std::filesystem::path p2{"./Sprites/ObjSpr"};
+		std::filesystem::path p2{SPRITES_OBJ_PATH};
 
 		for (auto& p : std::filesystem::directory_iterator(p2))
 		{
 			++ObjTypes;
 		}
 		
-		BlockTypes = ObjTypes + TileTypes;
+		BlockTypes = (ObjTypes + TileTypes) - 1;
 
 		CurrentBlock = 0;
 
@@ -169,54 +175,7 @@ public:
 		Menu.dmg = 0;
 		Menu.lvl = 0;
 
-		FILE* file;
-		if (fopen_s(&file, "map.bin", "r") == 0)
-		{
-			for (int i = 0; i < 256; i++) 
-			{
-				for (int j = 0; j < 256; j++)
-				{
-					fread(&World[i][j].block, sizeof(short), 1, file);
-					fread(&World[i][j].obj, sizeof(short), 1, file);
-				}
-			}
-			fclose(file);
-		}
-		else
-		{
-			std::cout << "MAP READ ERROR" << std::endl;
-			for (int i = 0; i < 256; i++)
-			{
-				for (int j = 0; j < 256; j++)
-				{
-					World[i][j].block = Tile::WATER;
-					World[i][j].obj = Object::NULLW;
-				}
-			}
-			for (int i = 16; i < 240; i++)		
-			
-			{
-				for (int j = 16; j < 240; j++)
-				{
-					World[i][j].block = 1;
-				}
-			}
-
-			for (int j = int(Player.y) + 2; j < int(Player.y) + 5; j++)
-			{
-				for (int i = int(Player.x); i < int(Player.x) + 10; i++)
-				{
-					World[i][j].block = Tile::WATER;
-				}
-			}
-			for (int j = int(Player.y) + 2; j < int(Player.y) + 5; j++)
-			{
-				for (int i = int(Player.x) + 4; i < int(Player.x) + 6; i++)
-				{
-					World[i][j].block = Tile::BRIDGE;
-				}
-			}
-		}
+		
 		fAccumulatedTime = 0.0f;
 		//sAppName = "Example";
 		Player.state = 0;
@@ -231,7 +190,6 @@ public:
 		IPressed = false;
 		
 		KeyPressed = false;
-		
 	}
 
 	~Game() // дуструктор класса
@@ -290,6 +248,10 @@ public:
 		
 // Вывод захапанной памяти всей игрой
 		std::cout<< "size of game in memory "<< sizeof(*this)<<std::endl;
+		if (DebugMode == true)
+		{
+			std::cout << "Debug Mode active" << std::endl;
+		}
 		return true;
 	}
 
@@ -308,7 +270,7 @@ public:
 			KeyPressed = true;
 		}
 
-		if (GetKey(olc::Key::F).bPressed)
+		if (GetKey(olc::Key::F).bPressed && (DebugMode == true))
 		{
 			std::cout << "Enter Player statement" << std::endl;
 			std::cin >> Player.state;
@@ -321,7 +283,6 @@ public:
 		if(GetKey(olc::Key::ESCAPE).bPressed)
 		{
 			EscPressed = true;
-			
 		}
 
 		if(GetKey(olc::Key::ENTER).bPressed)
@@ -351,18 +312,19 @@ public:
 
 		if (GetKey(olc::Key::S).bPressed)
 		{
-			FILE* file;
-			if (fopen_s(&file, "map.bin", "w") == 0)
+			std::ofstream file(WORLD_MAP_PATH, std::ios::binary | std::ios::in);
+			if (file)
 			{
 				for (int i = 0; i < 256; i++)
 				{
 					for (int j = 0; j < 256; j++)
 					{
-						fwrite(&World[i][j].block, sizeof(short), 1, file);
-						fwrite(&World[i][j].obj, sizeof(short), 1, file);
+
+						file.write((char*)&World[i][j].block, sizeof(short));
+						file.write((char*)&World[i][j].obj, sizeof(short));
 					}
 				}
-				fclose(file);
+				file.close();
 				std::cout << "World Saved!" << std::endl;
 			}
 			else
@@ -387,7 +349,6 @@ public:
 			{
 				CurrentBlock--;
 			}
-			std::cout << "cuurent block id = " << CurrentBlock << std::endl;
 		}
 		if (GetKey(olc::Key::R).bPressed && (BuildMod == true))
 		{
@@ -399,7 +360,6 @@ public:
 			{
 				CurrentBlock++;
 			}
-			std::cout << "cuurent block id = " << CurrentBlock << std::endl;
 		}
 
 		fAccumulatedTime += fElapsedTime;
@@ -435,17 +395,15 @@ public:
 			Clear(olc::DARK_BLUE); // очистка экран на сплошной цвет
 
 			
-			if (IPressed == true)
+			if ((IPressed == true) && (DebugMode == true))
 			{
 				if (BuildMod == false)
 				{
 					BuildMod = true;
-					std::cout << "BuildMod activated" << std::endl;
 				}
 				else if (BuildMod = true)
 				{
 					BuildMod = false;
-					std::cout << "BuildMod DIACTIVATED" << std::endl;
 				}
 				IPressed = false;
 			}
@@ -530,6 +488,10 @@ public:
 		break;
 		case State::DIED:
 			DisplayDEATH();
+		break;
+		case State::WORLD_LOADING:
+			ReadMap();
+			break;
 		}
 
 		IPressed = false;
@@ -569,6 +531,8 @@ private:
 	float fAccumulatedTime;			//Время с момента запуска
 	float timer;					//Принимает значение ElapsedTime в момент вызова
 
+	unsigned frame;
+
 	short KeyFrame;		//Делает ничего
 
 	Map World[256][256];		//Матрица для записи мира в файл
@@ -591,6 +555,7 @@ private:
 
 	unsigned CurrentBlock;		//Текущий блок в режиме редактирования
 
+	bool DebugMode;
 	bool KeyPressed;		//Нажатие любой клавиши
 	bool BuildMod;			//Режим редактирования
 
@@ -605,6 +570,8 @@ private:
 	bool ConfigurationLoad;
 
 	unsigned FPS;
+
+	std::ifstream filemap;
 
 	bool InCredits;			//Контрольная переменная для показа титров в главном меню
 	//void functions
@@ -977,7 +944,7 @@ private:
 		}
 		if((EnterPressed == true) && ((Menu.y >= 0.5f) && (Menu.y < 1.5f)))
 		{
-			Player.state = 2;
+			Player.state = State::WORLD_LOADING;
 			EnterPressed = false;
 		}
 		if((EnterPressed == true) && ((Menu.y >= 1.5f) && (Menu.y < 2.5f)))
@@ -989,6 +956,70 @@ private:
 		{
 			exit(0);
 		}
+	}
+
+	void ReadMap()
+	{
+		Clear(olc::BLACK);
+		DrawRect((MiddleX - 127), MiddleY - 1, 255, 62, olc::WHITE);
+		FillRect((MiddleX - 126), MiddleY, frame, 60, olc::RED);
+		DrawString(MiddleX - 70, MiddleY + 30, "LOADING MAP 256/" + std::to_string(frame), olc::WHITE, 1);
+
+		if (frame > 255)
+		{
+			frame = 0;
+			Player.state = State::OVERWORLD;
+
+			filemap.close();
+		}
+		else
+		{
+			if (filemap)
+			{
+				for (int i = 0; i < 256; i++)
+				{
+					filemap.read((char*)&World[frame][i].block, sizeof(short));
+					filemap.read((char*)&World[frame][i].obj, sizeof(short));
+				}
+			}
+			else
+			{
+				std::cout << "MAP READ ERROR" << std::endl;
+				for (int i = 0; i < 256; i++)
+				{
+					for (int j = 0; j < 256; j++)
+					{
+						World[i][j].block = Tile::WATER;
+						World[i][j].obj = Object::NULLW;
+					}
+				}
+				for (int i = 16; i < 240; i++)
+
+				{
+					for (int j = 16; j < 240; j++)
+					{
+						World[i][j].block = 1;
+					}
+				}
+
+				for (int j = int(Player.y) + 2; j < int(Player.y) + 5; j++)
+				{
+					for (int i = int(Player.x); i < int(Player.x) + 10; i++)
+					{
+						World[i][j].block = Tile::WATER;
+					}
+				}
+				for (int j = int(Player.y) + 2; j < int(Player.y) + 5; j++)
+				{
+					for (int i = int(Player.x) + 4; i < int(Player.x) + 6; i++)
+					{
+						World[i][j].block = Tile::BRIDGE;
+					}
+				}
+				Player.state = State::OVERWORLD;
+			}
+		}	
+		frame++;
 	}
 
 	void OverworldControl(float fElapsedTime)	//Управление/Перемещение по миру
@@ -1020,7 +1051,6 @@ private:
 			if(World[int(Player.x)][int(Player.y)].block == Tile::GRASS && (BuildMod == false))
 			{
 				unsigned random = rand() % BattleChance + 1;
-				std::cout << random << std::endl;
 				if(random <= 1)
 				{
 					Player.state = State::PRE_FIGHT;
@@ -1052,16 +1082,18 @@ private:
 		FillRect(0, 0, 480, 40, olc::BLACK);
 		DrawString(5,20, "Plr.X = " + std::to_string(int(Player.x)), olc::WHITE, 1.0f);
 		DrawString(5,30, "Plr.Y = " + std::to_string(int(Player.y)), olc::WHITE, 1.0f);
-		DrawString(100, 20, "CurBlock = " + std::to_string(int(World[int(Player.x)][int(Player.y)].block)), olc::WHITE, 1.0f);
-		DrawString(100, 30, "CurObj = " + std::to_string(int(World[int(Player.x)][int(Player.y)].obj)), olc::WHITE, 1.0f);
+		DrawString(100, 20, "Block = " + std::to_string(int(World[int(Player.x)][int(Player.y)].block)), olc::WHITE, 1.0f);
+		DrawString(100, 30, "Obj = " + std::to_string(int(World[int(Player.x)][int(Player.y)].obj)), olc::WHITE, 1.0f);
 		FillRect(416,17, 56, 56 , olc::DARK_GREEN);
 		
 		if (CurrentBlock < TileTypes)
 		{
+			DrawString(200, 25, "Block: " + std::to_string(int(CurrentBlock)), olc::WHITE, 1.0f);
 			DrawSprite(420, 20, GetSprite(CurrentBlock), 0.5f, 0);
 		}
 		else
 		{
+			DrawString(200, 25, "Obj: " + std::to_string(int(CurrentBlock - TileTypes)), olc::WHITE, 1.0f);
 			DrawSprite(420, 20, GetObj(CurrentBlock - TileTypes), 0.5f, 0);
 		}
 		
@@ -1178,10 +1210,8 @@ private:
 		}
 		else if (param == "debug_mode")
 		{
-			if ((value >= 0) && (value <= 1))
-			{
-				BuildMod = value;
-			}
+			DebugMode = value;
+			DebugMode = true;
 		}
 	}
 	
