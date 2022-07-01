@@ -1,4 +1,5 @@
 ﻿#define OLC_PGE_APPLICATION
+
 #include "olcPixelGameEngine.h"
 #include <fstream>
 #include <filesystem>
@@ -123,7 +124,7 @@ public:
 		}
 		else
 		{
-			BuildMod = false;
+			DebugMode = false;
 			FPS = 60;
 			ConfigurationLoad = false;
 		}
@@ -136,7 +137,6 @@ public:
 		{
 			++TileTypes;
 		}
-		++TileTypes; // because we have Tile::EMPTY
 		ObjTypes = 0;
 
 		std::filesystem::path p2{SPRITES_OBJ_PATH};
@@ -146,7 +146,9 @@ public:
 			++ObjTypes;
 		}
 		
-		BlockTypes = (ObjTypes + TileTypes) - 1;
+		GenerateTextureHash();
+
+		BlockTypes = (ObjTypes + TileTypes);
 
 		CurrentBlock = 0;
 
@@ -190,6 +192,8 @@ public:
 		IPressed = false;
 		
 		KeyPressed = false;
+
+		InCredits = false;
 	}
 
 	~Game() // дуструктор класса
@@ -199,11 +203,11 @@ public:
 
 	bool OnUserCreate() override // вызов при создании окна
 	{
-		InCredits = false;
+		
 
 		SetPixelMode(olc::Pixel::MASK);
 
-		FillRect(0, 0, ScreenWidth() + 20, ScreenHeight() + 20, olc::BLACK);	//
+		FillRect(0, 0, ScreenWidth() + 20, ScreenHeight() + 20, olc::BLACK);
 
 		TileX = ScreenWidth() / 5;			//Middle of a display
 		TileY = ScreenHeight() / 5;
@@ -220,18 +224,35 @@ public:
 		alisaFight = std::make_unique<olc::Sprite>("./Sprites/player/BattlePlayer.png");	
 
 //Blocks
-		waterw = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/waterw.png");		
-		grassw = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/grassw.png");
-		bridgew = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/bridgew.png");
-		
-		BrokenRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/BrokenRoad.png");
-		OldRoad = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/OldRoad.png");
-		treew = std::make_unique<olc::Sprite>("./Sprites/WorldSpr/Treew.png");
+		std::cout << "all file paths:" << std::endl;
+		for (const auto& file : std::filesystem::recursive_directory_iterator(SPRITES_WORLD_PATH))
+		{
+			SpriteVec.push_back(std::make_unique<olc::Sprite>(file.path().string()));
+			std::cout << file.path() << std::endl;
+			//TileNames.push_back(file.path());
+		}
+		for (const auto& file : std::filesystem::recursive_directory_iterator(SPRITES_OBJ_PATH))
+		{
+			SpriteVec.push_back(std::make_unique<olc::Sprite>(file.path().string()));
+			std::cout << file.path() << std::endl;
+			//TileNames.push_back(file.path());
+		}
+			
+		/*
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/WorldSpr/waterw.png"));
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/WorldSpr/grassw.png"));
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/WorldSpr/waterw.png"));
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/WorldSpr/bridgew.png"));
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/WorldSpr/OldRoad.png"));
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/WorldSpr/BrokenRoad.png"));
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/WorldSpr/Treew.png"));
+		*/
 
-//Objects		
-		signw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/signw.png");
-		NULLw = std::make_unique<olc::Sprite>("./Sprites/ObjSpr/NULLw.png");
-		
+//Objects
+		/*SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/ObjSpr/NULLw.png"));
+		SpriteVec.push_back(std::make_unique<olc::Sprite>("./Sprites/ObjSpr/signw.png"));*/
+
+		std::cout << "sprite vec size = " << SpriteVec.size() << std::endl;
 //Enemies
 		floppa = std::make_unique<olc::Sprite>("./Sprites/Enemies/Floppa.png");
 		bingus = std::make_unique<olc::Sprite>("./Sprites/Enemies/Bingus.png");
@@ -257,6 +278,11 @@ public:
 
 	bool OnUserUpdate(float fElapsedTime) override // Summons every frame
 	{
+		if (Player.state == State::WORLD_LOADING)
+		{
+			ReadMap();
+			return true;
+		}
 		// Keyboard controls
 
 		if(GetKey(olc::Key::UP).bPressed)
@@ -320,8 +346,8 @@ public:
 					for (int j = 0; j < 256; j++)
 					{
 
-						file.write((char*)&World[i][j].block, sizeof(short));
-						file.write((char*)&World[i][j].obj, sizeof(short));
+						file.write((char*)&World[i][j].block, sizeof(unsigned short));
+						file.write((char*)&World[i][j].obj, sizeof(unsigned short));
 					}
 				}
 				file.close();
@@ -343,7 +369,7 @@ public:
 		{
 			if(CurrentBlock == 0)
 			{
-				CurrentBlock = BlockTypes;
+				CurrentBlock = BlockTypes - 1;
 			}
 			else
 			{
@@ -352,7 +378,7 @@ public:
 		}
 		if (GetKey(olc::Key::R).bPressed && (BuildMod == true))
 		{
-			if(CurrentBlock == BlockTypes)
+			if(CurrentBlock == BlockTypes - 1)
 			{
 				CurrentBlock = 0;
 			}
@@ -362,8 +388,13 @@ public:
 			}
 		}
 
+		if ((Player.state == State::OVERWORLD) && (KeyPressed == true))
+		{
+			OverworldControl(fElapsedTime);
+		}
+
 		fAccumulatedTime += fElapsedTime;
-		if (fAccumulatedTime >= fTargetFrameTime)
+		if (fAccumulatedTime >= fTargetFrameTime) 
 		{
 			fAccumulatedTime -= fTargetFrameTime;
 			fElapsedTime = fTargetFrameTime;
@@ -372,7 +403,7 @@ public:
 		{
 			return true;
 		}
-		Clear(olc::BLACK);
+		
 
 		//основной свитч прорисовки игры
 
@@ -417,7 +448,7 @@ public:
 				}
 				else
 				{	
-					if (CurrentBlock - TileTypes == Object::NULLW)
+					if ((CurrentBlock - TileTypes) == Object::NULLW)
 					{
 						World[int(Player.x)][int(Player.y)].obj = NULL;
 					}
@@ -436,7 +467,6 @@ public:
 				Menu.y = 0;
 			}
 
-			OverworldControl(fElapsedTime);
 			DisplayWorld();
 			DisplayPlayer();
 
@@ -489,9 +519,6 @@ public:
 		case State::DIED:
 			DisplayDEATH();
 		break;
-		case State::WORLD_LOADING:
-			ReadMap();
-			break;
 		}
 
 		IPressed = false;
@@ -503,21 +530,19 @@ public:
 private:
 
 	// variables
+
+	std::vector<std::unique_ptr<olc::Sprite>> SpriteVec;
 	
 	std::unique_ptr<olc::Sprite> bridgew;		//Инициализация спрайтов
 	std::unique_ptr<olc::Sprite> alisaw;
-	std::unique_ptr<olc::Sprite> grassw;
-	std::unique_ptr<olc::Sprite> waterw;
-	std::unique_ptr<olc::Sprite> signw;
-	std::unique_ptr<olc::Sprite> BrokenRoad;
-	std::unique_ptr<olc::Sprite> OldRoad;
 	std::unique_ptr<olc::Sprite> alisawRight;
-	std::unique_ptr<olc::Sprite> treew;
-	std::unique_ptr<olc::Sprite> NULLw;
+
 	std::unique_ptr<olc::Sprite> alisaFight;
+
 	std::unique_ptr<olc::Sprite> floppa;
 	std::unique_ptr<olc::Sprite> bingus;
 	std::unique_ptr<olc::Sprite> sogga;
+
 	std::unique_ptr<olc::Sprite> attackIcon;
 	std::unique_ptr<olc::Sprite> blockIcon;
 	std::unique_ptr<olc::Sprite> dodgeIcon;
@@ -856,9 +881,6 @@ private:
 			case Enemy::SOGGA:
 				return sogga.get();
 			break;
-			default:
-				return NULLw.get();
-			break;
 		}
 	}
 
@@ -887,9 +909,30 @@ private:
 			case Icon::DODGEICON:
 				return dodgeIcon.get();
 				break;
-			default:
-				return NULLw.get();
-				break;
+		}
+	}
+
+	olc::Sprite* GetSprite(unsigned SpriteID)		//Возвращает спрайт при прорисовке мира
+	{
+		if (SpriteID < BlockTypes - 1)
+		{
+			return SpriteVec[SpriteID].get();
+		}
+		else
+		{
+			return SpriteVec[Tile::EMPTY].get();
+		}
+	}
+
+	olc::Sprite* GetObj(unsigned SpriteID)		//Возвращает спрайт при прорисовке мира
+	{
+		if ((SpriteID + TileTypes) > ObjTypes)
+		{
+			return SpriteVec[SpriteID + TileTypes].get();
+		}
+		else
+		{
+			return SpriteVec[TileTypes].get();
 		}
 	}
 
@@ -899,7 +942,7 @@ private:
 
 		if(InCredits == true)
 		{
-			DrawString(10, MiddleY - 20, "Developed by Overclocking_Infernale with help of Vladimir_Maks", olc::WHITE, 1);
+			DrawString(10, MiddleY - 20, "Developed by Overclocking_Infernale with Vladimir_Maks", olc::WHITE, 1);
 			DrawString(10, MiddleY, "PixelGameEngine by OneLineCoder", olc::WHITE, 1);
 			DrawString(25, MiddleY - 60, "Press Enter to return", olc::YELLOW, 1);
 			if(EnterPressed == true)
@@ -958,6 +1001,11 @@ private:
 		}
 	}
 
+	void GenerateTextureHash()
+	{
+		
+	}
+
 	void ReadMap()
 	{
 		Clear(olc::BLACK);
@@ -978,8 +1026,8 @@ private:
 			{
 				for (int i = 0; i < 256; i++)
 				{
-					filemap.read((char*)&World[frame][i].block, sizeof(short));
-					filemap.read((char*)&World[frame][i].obj, sizeof(short));
+					filemap.read((char*)&World[frame][i].block, sizeof(unsigned short));
+					filemap.read((char*)&World[frame][i].obj, sizeof(unsigned short));
 				}
 			}
 			else
@@ -1105,49 +1153,6 @@ private:
 		DrawString(30,370, GetSign(), olc::WHITE, 2);
 	}
 
-	olc::Sprite* GetSprite(unsigned SpriteID)		//Возвращает спрайт при прорисовке мира
-	{
-		switch(SpriteID)
-		{
-			case Tile::EMPTY:
-				return waterw.get();
-				break;
-			case Tile::GRASS:
-				return grassw.get();
-				break;
-			case Tile::WATER:
-				return waterw.get();
-				break;
-			case Tile::BRIDGE:
-				return bridgew.get();
-				break;
-			case Tile::ROAD:
-				return OldRoad.get();
-				break;
-			case Tile::BROKENROAD:
-				return BrokenRoad.get();
-				break;
-			case Tile::TREE:
-				return treew.get();
-				break;
-			default:
-				return waterw.get();
-		}
-	}
-
-	olc::Sprite* GetObj(unsigned SpriteID)		//Возвращает спрайт при прорисовке мира
-	{
-		switch (SpriteID)
-		{
-		case Object::SIGN:
-			return signw.get();
-			break;
-		default:
-			return NULLw.get();
-			break;
-		}
-	}
-
 
 	bool CollisionDetection(unsigned block)		//Проверка на коллизии/отключение коллизий в режиме редактирования
 	{
@@ -1211,7 +1216,6 @@ private:
 		else if (param == "debug_mode")
 		{
 			DebugMode = value;
-			DebugMode = true;
 		}
 	}
 	
